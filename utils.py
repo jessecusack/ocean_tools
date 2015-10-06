@@ -327,3 +327,18 @@ def std_spike_detector(x, N):
     x_std = np.std(x)
     tf = np.abs(x - x_mean) > N*x_std
     return tf
+
+
+def interp_nonmon(x, xp, fp, left=None, right=None):
+    """See documentation for numpy.interp. This does the same thing, however,
+    if it detects that xp is not monotonically increasing it attempts to flip
+    xp and fp before doing the interpolation. This should work for the case
+    where xp is monotonically decreasing instead but not much else.
+
+    """
+    if np.mean(np.diff(xp)) < 0.:
+        xpf = np.flipud(xp)
+        fpf = np.flipud(fp)
+        return np.interp(x, xpf, fpf, left, right)
+    else:
+        return np.interp(x, xp, fp, left, right)
