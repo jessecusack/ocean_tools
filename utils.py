@@ -220,8 +220,10 @@ def finite_diff(x, y, ivar=None, order=1, acc=1):
 
 
 def nan_interp(x, xp, fp, left=None, right=None):
-    """ """
+    """See numpy.interp documentation. This does the same thing but ignores NaN
+    values.
 
+    """
     y = np.nan*np.zeros_like(x)
 
     x_nans = np.isnan(x)
@@ -233,15 +235,33 @@ def nan_interp(x, xp, fp, left=None, right=None):
 
 
 def nan_polyfit(x, y, deg, rcond=None, full=False, w=None, cov=False):
-    """ """
+    """See numpy.polyfit documentation. This does the same thing but ignores
+    NaN values.
 
+    """
     nans = np.isnan(x) | np.isnan(y)
     return np.polyfit(x[~nans], y[~nans], deg, rcond, full, w, cov)
 
 
 def nan_polyvalfit(x, y, deg):
-    """ """
+    """Fit a polynomial to data and return polynomial values, ignoring NaNs.
 
+    Parameters
+    ----------
+    x : array_like
+        x data.
+    y : array_like
+        Data to fit.
+    deg : int
+        Degree of polynomial to fit. (Can be zero i.e. constant)
+
+
+    Returns
+    -------
+    y_out : numpy.array
+        Values of the polynomial at x positions.
+
+    """
     p = nan_polyfit(x, y, deg)
     nans = np.isnan(x) | np.isnan(y)
     y_out = np.nan*np.zeros_like(y)
@@ -250,7 +270,24 @@ def nan_polyvalfit(x, y, deg):
 
 
 def nan_detrend(x, y, deg=1):
-    """ """
+    """Subtract a polynomial fit from the data, ignoring NaNs.
+
+    Parameters
+    ----------
+    x : array_like
+        x data.
+    y : array_like
+        Data to detrend.
+    deg : int
+        Degree of polynomial to subtract. (Can be zero i.e. constant)
+
+
+    Returns
+    -------
+    y_out : numpy.array
+        Detrended data.
+
+    """
     y_out = np.nan*np.zeros_like(y)
 
     if np.ndim(x) == 1:
