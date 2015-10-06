@@ -266,3 +266,27 @@ def nan_detrend(x, y, deg=1):
         raise RuntimeError('Arguments must be 1 or 2 dimensional arrays.')
 
     return y_out
+
+
+def std_spike_detector(x, N):
+    """Returns boolean for values in exceed the mean by more than N standard
+    deviations.
+
+    Parameters
+    ----------
+    x : array_like
+        Numbers.
+    N : array_like
+        Number of standard deivations.
+
+
+    Returns
+    -------
+    tf : numpy.array
+        Array of true and false flags.
+
+    """
+    x_mean = np.mean(x)
+    x_std = np.std(x)
+    tf = np.abs(x - x_mean) > N*x_std
+    return tf
