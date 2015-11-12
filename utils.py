@@ -160,6 +160,7 @@ def flip_cols(data, cols=None):
 
 def finite_diff(x, y, ivar=None, order=1, acc=1):
     """Differentiate a curve and then interpolate back onto x positions.
+    NOTE: Why use this when there is a np.gradient function?
 
     Parameters
     ----------
@@ -342,3 +343,37 @@ def interp_nonmon(x, xp, fp, left=None, right=None):
         return np.interp(x, xpf, fpf, left, right)
     else:
         return np.interp(x, xp, fp, left, right)
+
+
+def spherical_polar_gradient(r, lon, lat, f):
+    """Extension of the np.gradient function to spherical polar coordinates.
+    Only gradients on a surface of constant radius (i.e. 2 dimensional) are
+    currently supported. The grid must be evenly spaced in latitude and
+    longitude. Assumes latitudes are rows and longitudes are columns of input.
+
+    Parameters
+    ----------
+    r : float
+        Radius of sphere. [m]
+    lon : 1d array
+        Longitude points. [Degrees]
+    lat : 1d array
+        Longitude points. [Degrees]
+    f : 2d array
+        Scalar to calculate gradient.
+
+    Returns
+    -------
+    df: gradient of f.
+
+    """
+
+    dlon = np.diff(lon)[0]
+    dlat = np.diff(lat)[0]
+
+    dflon, dflat = np.gradient(f.T, dlon, dlat)
+
+    dflon = dflon/(r*np.sin(np.deg2rad(lat)))
+    dflat = dflat/r
+
+    return dflon.T, dflat.T
