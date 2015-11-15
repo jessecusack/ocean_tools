@@ -160,7 +160,8 @@ def flip_cols(data, cols=None):
 
 def finite_diff(x, y, ivar=None, order=1, acc=1):
     """Differentiate a curve and then interpolate back onto x positions.
-    NOTE: Why use this when there is a np.gradient function?
+    NOTE: Why use this when there is a np.gradient function? Because this deals
+    with NaN values differently which may be preferable.
 
     Parameters
     ----------
@@ -345,7 +346,7 @@ def interp_nonmon(x, xp, fp, left=None, right=None):
         return np.interp(x, xp, fp, left, right)
 
 
-def spherical_polar_gradient(r, lon, lat, f):
+def spherical_polar_gradient(r, dlon, dlat, lat, f):
     """Extension of the np.gradient function to spherical polar coordinates.
     Only gradients on a surface of constant radius (i.e. 2 dimensional) are
     currently supported. The grid must be evenly spaced in latitude and
@@ -354,9 +355,11 @@ def spherical_polar_gradient(r, lon, lat, f):
     Parameters
     ----------
     r : float
-        Radius of sphere. [m]
-    lon : 1d array
-        Longitude points. [Degrees]
+        Radius of sphere.
+    dlon : 1d array
+        Longitude spacing. [Degrees]
+    dlat : 1d array
+        Latitude spacing. [Degrees]
     lat : 1d array
         Longitude points. [Degrees]
     f : 2d array
@@ -364,16 +367,55 @@ def spherical_polar_gradient(r, lon, lat, f):
 
     Returns
     -------
-    df: gradient of f.
+    dflon: 2d array
+        Derivative in longitudinal direction.
+    dflat: 2d array
+        Derivative in the latitudinal direction.
 
     """
 
-    dlon = np.diff(lon)[0]
-    dlat = np.diff(lat)[0]
+    dlon, dlat = np.deg2rad(dlon), np.deg2rad(dlat)
 
     dflon, dflat = np.gradient(f.T, dlon, dlat)
-
-    dflon = dflon/(r*np.sin(np.deg2rad(lat)))
+    # Cosine because latitude from -90 to 90. Not 0 to pi.
+    dflon = dflon/(r*np.cos(np.deg2rad(lat)))
     dflat = dflat/r
 
     return dflon.T, dflat.T
+
+
+def spherical_polar_area(r, lon, lat):
+    """Calculates the area bounding an array of latitude and longitude points.
+
+    Parameters
+    ----------
+    r : float
+        Radius of sphere.
+    lon : 1d array
+        Longitude points. [Degrees]
+    lat : 1d array
+        Longitude points. [Degrees]
+
+    Returns
+    -------
+    areas: 2d array
+
+    """
+
+    mid_dlon = (lon[2:] - lon[:-2])/2.
+    s_dlon = lon[1] - lon[0]
+    e_dlon = lon[-1] - lon[-2]
+    dlon = np.hstack((s_dlon, mid_dlon, e_dlon))
+
+    mid_dlat = (lat[2:] - lat[:-2])/2.
+    s_dlat = lat[1] - lat[0]
+    e_dlat = lat[-1] - lat[-2]
+    dlat = np.hstack((s_dlat, mid_dlat, e_dlat))
+
+    dlon, dlat = np.deg2rad(dlon), np.deg2rad(dlat)
+
+    gdlon, gdlat = np.meshgrid(dlon, dlat)
+
+    solid_angle = gdlon.T*gdlat.T*np.cos(np.deg2rad(lat))
+
+    return solid_angle.T*r**2
