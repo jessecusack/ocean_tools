@@ -708,6 +708,7 @@ def thorpe_scales(z, x):
             # Check for noise.
             q = x_sorted[jdxs[i+1]] - x_sorted[jdxs[i]]
             if q < 1e-3:
+                print('Below measurement accuracy.')
                 continue
 
             zrms = np.std(thorpe_disp[jdxs[i]:jdxs[i+1]])
