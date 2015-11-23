@@ -4,6 +4,9 @@ Created on Mon Jul 14 14:42:44 2014
 
 @author: jc3e13
 
+This module contains functions for working with the Garrett Munk internal wave
+spectrum. The aim is to develop a toolbox similar to the one that Jody Klymak
+wrote in Matlab, but so far it is just a messy collection of functions.
 
 """
 
@@ -92,19 +95,53 @@ def beta_star(N, j_star=3.):
 
 
 def E_vel_z(m, N, j_star=3.):
+    """Horizontal velocity spectra as a function of vertical wavenumber. """
     return 3*E_0*b**3*N_0**2/(2*j_star*np.pi*(1 + m/beta_star(N, j_star))**2)
 
 
 def E_she_z(m, N, j_star=3.):
-    """To normalise by N, divide return by N."""
+    """Vertical shear of horizontal velocity as a function of vertical
+    wavenumber. To normalise by N, divide return by N."""
     return m**2 * E_vel_z(m, N, j_star)/N
 
 
 def E_disp_z(m, N, j_star=3.):
+    """Vertical displacement as a function of vertical wavenumber."""
     num = E_0*b**3*N_0**2
     den = 2*j_star*np.pi*N**2 * (1 + m/beta_star(N, j_star))**2
     return num/den
 
 
 def E_str_z(m, N, j_star=3.):
+    """Vertical strain as a function of vertical wavenumber."""
     return m**2 * E_disp_z(m, N, j_star)
+
+
+def E_str_omk(om, k, f, N, j_star=3, rolloff=True, Er=E_0):
+    """Horizontal strain as a function of frequency and horizontal wavenumber.
+    Kunze et. al. 2015 Appendix
+    """
+    A = (om**2 + f**2)/om**5
+    B = k**2/(k*N_0*b + np.pi*np.sqrt(om**2 - f**2)*j_star)**2
+    S = np.pi*E_0*N*N_0**2*f*b**2*j_star*A*B
+
+    if rolloff:
+        m = k*N/np.sqrt(om**2 - f**2)
+        mc = np.pi*Er/(5*E_0)
+        r = mc/m
+        r[m < mc] = 1.
+        S *= r
+
+    return S
+
+
+def E_str_k(k, f, N, j_star=3, rolloff=True, Er=E_0):
+    """Horizontal strain as a function horizontal wavenumber. It is equal to
+    the function E_str_omk integrated between f and N.
+    Kunze et. al. 2015 Appendix
+    """
+    om = np.logspace(np.log10(f), np.log10(N), 1000)
+    omg, kg = np.meshgrid(om, k)
+    S = E_str_omk(omg, kg, f, N, j_star=j_star, rolloff=rolloff, Er=Er)
+
+    return np.trapz(S, om, axis=1)
