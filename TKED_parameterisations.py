@@ -34,7 +34,7 @@ default_corrections = {
     }
 
 default_periodogram_params = {
-    'window': 'sin2taper',
+    'window': 'hanning',
     'nfft': 256,
     'detrend': 'linear',
     'scaling': 'density',
@@ -171,114 +171,6 @@ def L(f, N):
     N0 = 5.2e-3  # rad s-1
     f = np.abs(f)
     return f*np.arccosh(N/f)/(f30*np.arccosh(N0/f30))
-
-
-def coperiodogram(x, y, fs=1.0, window=None, nfft=None, detrend='linear',
-                  scaling='density'):
-    """
-    Estimate co-power spectral density using periodogram method.
-
-    Parameters
-    ----------
-    x : array_like
-        Measurement values
-    y : array_like
-        Measurement values
-    fs : float, optional
-        Sampling frequency of `x` and `y`. e.g. If the measurements are a time
-        series then `fs` in units of Hz. Defaults to 1.0.
-    window : str or tuple or array_like, optional
-        Desired window to use. See `get_window` for a list of windows and
-        required parameters. If `window` is array_like it will be used
-        directly as the window and its length will be used for nperseg.
-        Defaults to `boxcar`. New window option `sin2taper` is available.
-    nfft : int, optional
-        Length of the FFT used, if a zero padded FFT is desired.  If None,
-        the FFT length is `len(x)`. Defaults to None.
-    detrend : str or function, optional
-        Specifies how to detrend each segment. If `detrend` is a string,
-        it is passed as the ``type`` argument to `detrend`. If it is a
-        function, it takes a segment and returns a detrended segment.
-        Defaults to 'linear'.
-    scaling : { 'density', 'spectrum' }, optional
-        Selects between computing the power spectral density ('density')
-        where Pxx has units of V**2/Hz if x is measured in V and computing
-        the power spectrum ('spectrum') where Pxx has units of V**2 if x is
-        measured in V. Defaults to 'density'.
-
-    Returns
-    -------
-    f : ndarray
-        Array of sample frequencies.
-    Pxx : ndarray
-        Power spectral density or power spectrum of x.
-    Pyy : ndarray
-        Power spectral density or power spectrum of y.
-    Pxy : ndarray (complex)
-        Co-power spectral density or co-power spectrum of x.
-
-    """
-
-    x, y = np.asarray(x), np.asarray(y)
-
-    if (x.size == 0) or (y.size == 0):
-        raise ValueError('At least one of the inputs is empty.')
-
-    if len(x) != len(y):
-        raise ValueError('x and y must have the same length.')
-
-    if nfft is None:
-        nfft = len(x)
-
-    if window is None:
-        win = sig.get_window('boxcar', len(x))
-    elif window == 'sin2taper':
-        win = sin2taper(len(x))
-    else:
-        win = sig.get_window(window, len(x))
-
-    if scaling == 'density':
-        scale = 1.0/(fs*(win*win).sum())
-    elif scaling == 'spectrum':
-        scale = 1.0/win.sum()**2
-    else:
-        raise ValueError('Unknown scaling: %r' % scaling)
-
-    x_dt = sig.detrend(x, type=detrend)
-    y_dt = sig.detrend(y, type=detrend)
-
-    xft = np.fft.fft(win*x_dt, nfft)
-    yft = np.fft.fft(win*y_dt, nfft)
-
-    # Power spectral density in x, y and xy.
-    Pxx = (xft*xft.conj()).real
-    Pyy = (yft*yft.conj()).real
-    Pxy = xft*yft.conj()
-
-    M = nfft/2 + 1
-
-    # Chop spectrum in half.
-    Pxx, Pyy, Pxy = Pxx[:M], Pyy[:M], Pxy[:M]
-
-    # Make sure the zero frequency is really zero and not a very very small
-    # non-zero number because that can mess up log plots.
-    if detrend is not None:
-        Pxx[..., 0], Pyy[..., 0], Pxy[..., 0] = 0., 0., 0.
-
-    # Multiply spectrum by 2 except for the Nyquist and constant elements to
-    # account for the loss of negative frequencies.
-    Pxx[..., 1:-1] *= 2*scale
-    Pxx[..., (0, -1)] *= scale
-
-    Pyy[..., 1:-1] *= 2*scale
-    Pyy[..., (0, -1)] *= scale
-
-    Pxy[..., 1:-1] *= 2*scale
-    Pxy[..., (0, -1)] *= scale
-
-    f = np.arange(Pxx.shape[-1])*(fs/nfft)
-
-    return f, Pxx, Pyy, Pxy
 
 
 def CW_ps(Pxx, Pyy, Pxy):
@@ -431,14 +323,13 @@ def window_ps(dz, U, V, dUdz, dVdz, strain, N2_ref, params=default_params):
     ndVdz = dVdz/np.mean(np.sqrt(N2_ref))
 
     # Compute the (co)power spectral density.
-    m, PdU, PdV, PdUdV = coperiodogram(ndUdz, ndVdz, fs=1./dz,
-                                       **params['periodogram_params'])
-    # We only really want the cospectrum for shear so the next two lines are
-    # something of a hack where we ignore unwanted output.
-    __, PU, PV, __ = coperiodogram(U, V, fs=1./dz,
-                                   **params['periodogram_params'])
-    __, Pstrain, __, __ = coperiodogram(strain, U, fs=1./dz,
-                                        **params['periodogram_params'])
+    fs = 1./dz
+    m, PdUdV = sig.csd(ndUdz, ndVdz, fs=fs, **params['periodogram_params'])
+    __, PdU = sig.periodogram(ndUdz, fs=fs, **params['periodogram_params'])
+    __, PdV = sig.periodogram(ndVdz, fs=fs, **params['periodogram_params'])
+    __, PU = sig.periodogram(U, fs=fs, **params['periodogram_params'])
+    __, PV = sig.periodogram(V, fs=fs, **params['periodogram_params'])
+    __, Pstrain = sig.periodogram(strain, fs=fs, **params['periodogram_params'])
 
     # Clockwise and counter clockwise spectra.
     PCW = CW_ps(PdU, PdV, PdUdV)
@@ -686,5 +577,3 @@ def w_scales(w, z, N2, dz=1., c=0.1, eff=0.2, lc=30.):
     kappa = eff*epsilon/N2_mean
 
     return epsilon, kappa
-
-
