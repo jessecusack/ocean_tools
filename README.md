@@ -1,24 +1,24 @@
 Ocean Tools
 =============
-This reposity contains modules of oceanographic data analysis tools.
+This reposity contains oceanographic data analysis tools.
+
+Major depedencies are (vast majority of functions work with only):
+numpy
+
+Minor dependencies are (some functions may require):
+scipy
+matplotlib
+gsw
 
 Modules
-------
-Certain modules may require numpy, scipy, the gibbs seawater toolbox (gsw),
-matplotlib, basemap and various other bits and bobs.
+-------
 
-* utils.py: contains functions to convert MATLAB datenumbers to python datetime 
-objects and to calculate the distance between lat lon points as well as the
-Bunch class.
-* sandwell.py: contains functions to read areas or tracks of bathymetry from the 
-Smith and Sandwell binary file.
-* window.py: contains functions that apply moving windows and binning to data.
-* finescale.py: contains functions for applying finescale parameterisations of 
-turbulent dissipation and analysing spectra of shear, strain. (Work in progress)
-* GM79.py: the 1979 verion of the Garrett-Munk internal wave spectrum in pythonic 
-form.
-* gravity_waves.py: all things related to internal gravity waves i.e. dispersion 
-relations, polarisation relations etc. 
-* detect_peaks.py: Functions taken from where else (credited in file) to detect
-peaks in data.
-* my_savefig.py: Functions for making matplotlib figures publishable.
+* GM.py: functions for applying the Garrett and Munk internal wave spectra.
+* TKED_parameterisations.py: functions for estimating turbulent kinetic energy dissipation from finescale observations. Including the finescale parameterisation, Thorpe scale estimates and the large eddy method.
+* gravity_waves.py: linear inertia-gravity wave dynamics.
+* my_savefig.py: format figures for saving to publication specifications. 
+* sandwell.py: read data from the Smith and Sandwell bathymetric binary file into a numpy array efficiently.
+* utils.py: miscellaneous functions. 
+* window.py: functions for splitting data into chunks.
+
+All very much a work in progress.
