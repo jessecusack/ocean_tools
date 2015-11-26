@@ -5,7 +5,8 @@ Created on Fri Jun 13 16:31:11 2014
 @author: jc3e13
 
 This module contains functions for investigating internal gravity waves.
-
+All functions take angular frequency and wavenumber. Angular wavenumber is 2 pi
+divided by the wavelength and angular frequency is 2 pi divided by the period.
 """
 
 import numpy as np
@@ -13,27 +14,28 @@ import numpy as np
 
 def omega(N, k, m, l=0., f=0.):
     """Dispersion relation for an internal gravity wave in a continuously
-    stratified fluid.
+    stratified fluid. Make sure inputs are in angular units of radians per
+    metre or radians per second.
 
     (Gill 1980)
 
     Parameters
     ----------
     N : ndarray
-        Buoyancy frequency [s-1]
+        Buoyancy frequency [rad s-1]
     k : ndarray
-        Horizontal wavenumber (x) [m-1]
+        Horizontal wavenumber (x) [rad m-1]
     m : ndarray
-        Vertical wavenumber (z) [m-1]
+        Vertical wavenumber (z) [rad m-1]
     l : ndarray, optional
-        Horizontal wavenumber (y) [m-1]
+        Horizontal wavenumber (y) [rad m-1]
     f : ndarray, optional
-        Coriolis parameter [s-1]
+        Coriolis parameter [rad s-1]
 
     Returns
     -------
     omega : ndarray
-        Frequency [s-1]
+        Frequency [rad s-1]
 
     """
 
@@ -47,27 +49,32 @@ def omega(N, k, m, l=0., f=0.):
 
 
 def U_0(phi_0, k, l, om, f):
-    """Zonal velocity amplitude."""
+    """Zonal velocity amplitude. Wavenumber and frequency should be in angular
+    units."""
     return ((k*om + 1j*l*f)/(om**2 - f**2))*phi_0
 
 
 def V_0(phi_0, k, l, om, f):
-    """Meridional velocity amplitude."""
+    """Meridional velocity amplitude. Wavenumber and frequency should be in
+    angular units."""
     return ((l*om - 1j*k*f)/(om**2 - f**2))*phi_0
 
 
 def W_0(phi_0, m, om, N):
-    """Vertical velocity amplitude."""
+    """Vertical velocity amplitude. Wavenumber and frequency should be in
+    angular units."""
     return (-om*m/(N**2 - om**2))*phi_0
 
 
 def B_0(phi_0, m, om, N):
-    """Buoyancy perturbation amplitude."""
+    """Buoyancy perturbation amplitude. Wavenumber and frequency should be in
+    angular units."""
     return (1j*m*N**2/(N**2 - om**2))*phi_0
 
 
 def ETA_0(phi_0, m, om, N):
-    """Isopycnal displacement amplitude. """
+    """Isopycnal displacement amplitude. Wavenumber and frequency should be in
+    angular units."""
     return phi_0*1j*m/(N**2 - om**2)
 
 
