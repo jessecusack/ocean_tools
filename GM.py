@@ -368,10 +368,3 @@ def E_str_k(k, f, N, j_star=3, rolloff=True, Er=E0):
 
 def disp_om(om, f, N):
     return b**2*N0*(om**2 - f**2)/(N*om**2)
-
-
-def E_disp_k(om, k, f, N, j_star=3):
-
-    def A(k):
-
-    E0*disp_om(om, f, N)*A(k)**2
