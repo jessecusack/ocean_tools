@@ -342,11 +342,11 @@ def E_str_omk(om, k, f, N, j_star=3, rolloff=True, Er=E0):
     """
     A = (om**2 + f**2)/om**5
     B = k**2/(k*N0*b + np.pi*np.sqrt(om**2 - f**2)*j_star)**2
-    S = np.pi*E0*N*N0**2*f*b**2*j_star*A*B
+    S = np.pi*E0*N*(N0**2)*f*(b**3)*j_star*A*B
 
     if rolloff:
         m = k*N/np.sqrt(om**2 - f**2)
-        mc = np.pi*Er/(5*E0)
+        mc = np.pi*Er/(5.*E0)
         r = mc/m
         r[m < mc] = 1.
         S *= r
@@ -359,7 +359,8 @@ def E_str_k(k, f, N, j_star=3, rolloff=True, Er=E0):
     the function E_str_omk integrated between f and N.
     Kunze et. al. 2015 Appendix
     """
-    om = np.logspace(np.log10(f), np.log10(N), 1000)
+    eps = 0.0001
+    om = np.logspace((1.-eps)*np.log10(f), (1.+eps)*np.log10(N), 1000)
     omg, kg = np.meshgrid(om, k)
     S = E_str_omk(omg, kg, f, N, j_star=j_star, rolloff=rolloff, Er=Er)
 
@@ -368,3 +369,39 @@ def E_str_k(k, f, N, j_star=3, rolloff=True, Er=E0):
 
 def disp_om(om, f, N):
     return b**2*N0*(om**2 - f**2)/(N*om**2)
+
+
+if __name__ == '__main__':
+
+    import matplotlib.pyplot as plt
+
+    print('Running tests\n')
+
+    f = 1.2e-4
+    N = 1.7e-3
+    k = np.logspace(-6, 0, 200)
+    om = np.logspace(np.log10(f), np.log10(N), 150)
+    omg, kg = np.meshgrid(om, k)
+
+    mc = np.pi/5.
+    kc = mc*np.sqrt((om**2 - f**2)/(N**2 - om**2))/(2.*np.pi)
+
+    Somk = E_str_omk(omg, 2.*np.pi*kg, f, N, True)
+    Sk = E_str_k(2.*np.pi*k, f, N, True)
+    kmax = kg[np.unravel_index(Somk.argmax(), Somk.shape)]
+
+    fig, axs = plt.subplots(2, 1, gridspec_kw={'height_ratios':[1, 2]})
+    c = axs[1].contourf(1000.*k, 1800.*om/np.pi, 2.*np.pi*Somk.T,
+                        cmap=plt.get_cmap('afmhot'))
+    axs[1].plot(1000.*kc, 1800.*om/np.pi, color='b')
+    axs[1].vlines(1000.*kmax, *axs[1].get_ylim(), color='b')
+    axs[1].set_xlim(np.min(1000.*k), np.max(1000.*k))
+    axs[1].set_xscale('log')
+    axs[1].set_yscale('log')
+    plt.colorbar(c, orientation='horizontal')
+
+    axs[1].set_ylabel('Frequency (cph)')
+    axs[1].set_xlabel('Horizontal wavenumber $k$ (cpkm)')
+
+    axs[0].loglog(1000.*k, 2.*np.pi*Sk)
+    axs[0].set_ylabel('Horizontal strain variance (')
