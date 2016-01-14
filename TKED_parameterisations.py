@@ -551,23 +551,55 @@ def thorpe_scales(z, x):
     return thorpe_scales, thorpe_disp, x_sorted, idxs
 
 
-def w_scales(w, z, N2, dz=1., c=0.1, eff=0.2, lc=30.):
-    """Inputs should be regularly spaced."""
+def w_scales(w, x, N2, dx=1., width=10., lc=30., c=0.1, eff=0.2):
+    """
+    Estimate turbulent kinetic energy dissipation from vertical velocity
+    variance, known as the 'large eddy method'.
+
+    Parameters
+    ----------
+    w : array
+        Vertical velocity [m s-1]
+    x : array
+        Indexing variable such as height or time.
+    N2 : array
+        Buoyancy frequency squared, note angular units. [rad2 s-2]
+    dx : float
+        Sample spacing, same units as x.
+    width : float
+        Width of box over which to calculate variance (wider boxes use more
+        measurements), same units as x.
+    lc : float
+        High pass filter cutoff length, same units as x.
+    c : float
+        Parameterisation coefficient that should be determined by comparison of
+        results from large eddy method with independent measure of TKED.
+    eff : float
+        Mixing efficiency, typically given a value of 0.2.
+
+    Returns
+    -------
+    epsilon : array
+        Turbulent kinetic energy dissipation (same length as input w). [W kg-1]
+    kappa : array
+        Diapycnal diffusivity. [m2 s-1]
+
+    """
 
     # First we have to design the high pass filter the data. Beaird et. al.
     # 2012 use a forth order butterworth with a cutoff of 30m.
-    mc = 1./lc  # cut off wavenumber (m-1)
-    normal_cutoff = mc*dz*2.  # Nyquist frequency is half 1/dz.
+    xc = 1./lc  # cut off wavenumber
+    normal_cutoff = xc*dx*2.  # Nyquist frequency is half 1/dx.
     b, a = sig.butter(4, normal_cutoff, btype='highpass')
 
     # Filter the data.
-    w_filt = sig.lfilter(b, a, w)
+    w_filt = sig.filtfilt(b, a, w)
 
-    w_wdws = wdw.window(z, w_filt, width=10., overlap=-1.)
-    N2_wdws = wdw.window(z, N2, width=10., overlap=-1.)
+    w_wdws = wdw.window(x, w_filt, width=width, overlap=-1.)
+    N2_wdws = wdw.window(x, N2, width=width, overlap=-1.)
 
-    w_rms = np.zeros_like(z)
-    N2_mean = np.zeros_like(z)
+    w_rms = np.zeros_like(x)
+    N2_mean = np.zeros_like(x)
 
     for i, (w_wdw, N2_wdw) in enumerate(zip(w_wdws, N2_wdws)):
         w_rms[i] = np.std(w_wdw[1])
