@@ -129,7 +129,7 @@ def eta(x, y, z, t, phi_0, k, l, m, om, N, U=0., V=0., W=0., phase_0=0.):
     return np.real(amplitude*np.exp(phase))
 
 
-def wave_vel(r, t, phi_0, U, k, l, m, om, N, f, phase_0=0.):
+def wave_vel(r, t, phi_0, N, f, k, l, m, om, U=0., V=0., W=0., phase_0=0.):
     """Wave velocity, accepts position stack and returns velocity stack."""
 
     x = r[..., 0]
@@ -140,7 +140,7 @@ def wave_vel(r, t, phi_0, U, k, l, m, om, N, f, phase_0=0.):
     v_amp = V_0(phi_0, k, l, om, f)
     w_amp = W_0(phi_0, m, om, N)
 
-    phase = wave_phase(x, y, z, t, k, l, m, om, U=U, phase_0=phase_0)
+    phase = wave_phase(x, y, z, t, k, l, m, om, U=U, V=V, W=W, phase_0=phase_0)
 
     u = np.real(u_amp*np.exp(phase))
     v = np.real(v_amp*np.exp(phase))
@@ -149,7 +149,7 @@ def wave_vel(r, t, phi_0, U, k, l, m, om, N, f, phase_0=0.):
     return (np.vstack((u, v, w))).T
 
 
-def buoy(r, t, phi_0, U, k, l, m, om, N, f, phase_0=0.):
+def buoy(r, t, phi_0, N, k, l, m, om, U=0., V=0., W=0., phase_0=0.):
     """Wave buoyancy, accepts position stack and returns buoyancy array."""
     x = r[..., 0]
     y = r[..., 1]
@@ -157,7 +157,7 @@ def buoy(r, t, phi_0, U, k, l, m, om, N, f, phase_0=0.):
 
     b_amp = B_0(phi_0, m, om, N)
 
-    phase = wave_phase(x, y, z, t, k, l, m, om, U=U, phase_0=phase_0)
+    phase = wave_phase(x, y, z, t, k, l, m, om, U=U, V=V, W=W, phase_0=phase_0)
 
     return np.real(b_amp*np.exp(phase))
 
