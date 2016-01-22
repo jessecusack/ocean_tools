@@ -191,8 +191,9 @@ def Efluxz(w_0, k, m, N, l=0., f=0., rho_0=1025.):
 
 
 def Mfluxz(phi_0, k, l, m, om, N, f=0., rho_0=1025.):
-    """Absolute vertical flux of horizontal momentum."""
+    """Absolute vertical flux of horizontal momentum.
+    Warning: I believe this is incorrect for small aspect ratio."""
     u_amp = np.abs(U_0(phi_0, k, l, om, f))
     v_amp = np.abs(V_0(phi_0, k, l, om, f))
     w_amp = np.abs(W_0(phi_0, m, om, N))
-    return rho_0*np.sqrt(((u_amp*w_amp)**2 + (v_amp*w_amp)**2))
+    return 0.5*rho_0*np.sqrt(((u_amp*w_amp)**2 + (v_amp*w_amp)**2))
