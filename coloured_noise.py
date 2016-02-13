@@ -37,7 +37,15 @@ def noise(N, dx, beta, mu=1., std=0.2):
     -----
     The function first generates a spectrum with given slope beta, with random
     phase, then performs an inverse FFT to generate the series.
+
     """
+
+    # Quick fix for odd N.
+    if N % 2 == 1:
+        Nisodd = True
+        N += 1
+    else:
+        Nisodd = False
 
     f = np.fft.fftfreq(N, dx)[1:N/2]
     fNy = (1./(2.*dx))
@@ -69,7 +77,13 @@ def noise(N, dx, beta, mu=1., std=0.2):
 
     Fy = real + 1j*imag
 
-    return np.fft.ifft(Fy).real
+    out = np.fft.ifft(Fy).real
+
+    # Quick fix for odd N.
+    if Nisodd:
+        out = out[:-1]
+
+    return out
 
 
 if __name__ == "__main__":
