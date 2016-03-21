@@ -12,7 +12,7 @@ import gsw
 import scipy.signal as sig
 import matplotlib.pyplot as plt
 import window as wdw
-import GM79
+import GM
 
 
 # Define some standard parameters.
@@ -417,14 +417,14 @@ def analyse(z, U, V, dUdz, dVdz, strain, N2_ref, lat, params=default_params):
 
         # Garrett-Munk shear power spectral density normalised.
         # The factor of 2 pi is there to convert to cyclical units.
-        GMshear = 2.*np.pi*GM79.E_she_z(2*np.pi*m, N_mean)/N_mean
+        GMshear = 2.*np.pi*GM.E_she_z(2*np.pi*m, N_mean)/N_mean
 
         IGMshear = integrated_ps(m, GMshear, params['m_c'], params['m_0'])
 
         EK[i] = IEK
         R_pol[i] = ICCW/ICW
         R_om[i] = Ishear/Istrain
-        epsilon[i] = GM79.epsilon_0*N2_mean/GM79.N_0**2*Ishear**2/IGMshear**2
+        epsilon[i] = GM.epsilon_0*N2_mean/GM.N_0**2*Ishear**2/IGMshear**2
         # Apply correcting factors
 
         epsilon[i] *= L(gsw.f(lat), N_mean)*h_gregg(R_om[i])
@@ -444,8 +444,8 @@ def analyse(z, U, V, dUdz, dVdz, strain, N2_ref, lat, params=default_params):
         if params['plot_spectra']:
 
             # The factor of 2 pi is there to convert to cyclical units.
-            GMstrain = 2.*np.pi*GM79.E_str_z(2*np.pi*m, N_mean)
-            GMvel = 2.*np.pi*GM79.E_vel_z(2*np.pi*m, N_mean)
+            GMstrain = 2.*np.pi*GM.E_str_z(2*np.pi*m, N_mean)
+            GMvel = 2.*np.pi*GM.E_vel_z(2*np.pi*m, N_mean)
 
             fig, axs = plt.subplots(4, 1, sharex=True)
 
