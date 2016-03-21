@@ -551,7 +551,8 @@ def thorpe_scales(z, x):
     return thorpe_scales, thorpe_disp, x_sorted, idxs
 
 
-def w_scales(w, x, N2, dx=1., width=10., lc=30., c=0.1, eff=0.2):
+def w_scales(w, x, N2, dx=1., width=10., lc=30., c=0.1,
+             eff=0.2, btype='highpass'):
     """
     Estimate turbulent kinetic energy dissipation from vertical velocity
     variance, known as the 'large eddy method'.
@@ -590,7 +591,7 @@ def w_scales(w, x, N2, dx=1., width=10., lc=30., c=0.1, eff=0.2):
     # 2012 use a forth order butterworth with a cutoff of 30m.
     xc = 1./lc  # cut off wavenumber
     normal_cutoff = xc*dx*2.  # Nyquist frequency is half 1/dx.
-    b, a = sig.butter(4, normal_cutoff, btype='highpass')
+    b, a = sig.butter(4, normal_cutoff, btype=btype)
 
     # Filter the data.
     w_filt = sig.filtfilt(b, a, w)
