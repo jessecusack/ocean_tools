@@ -551,8 +551,8 @@ def thorpe_scales(z, x):
     return thorpe_scales, thorpe_disp, x_sorted, idxs
 
 
-def w_scales(w, x, N2, dx=1., width=10., lc=30., c=0.1,
-             eff=0.2, btype='highpass'):
+def w_scales(w, x, N2, dx=1., width=10., lc=30., c=1., eff=0.2,
+             btype='highpass', we=1e-3, ret_noise=False):
     """
     Estimate turbulent kinetic energy dissipation from vertical velocity
     variance, known as the 'large eddy method'.
@@ -565,18 +565,25 @@ def w_scales(w, x, N2, dx=1., width=10., lc=30., c=0.1,
         Indexing variable such as height or time.
     N2 : array
         Buoyancy frequency squared, note angular units. [rad2 s-2]
-    dx : float
-        Sample spacing, same units as x.
-    width : float
+    dx : float, optional
+        Sample spacing, same units as x. Default is 1.
+    width : float, optional
         Width of box over which to calculate variance (wider boxes use more
-        measurements), same units as x.
-    lc : float
-        High pass filter cutoff length, same units as x.
-    c : float
+        measurements), same units as x. Default is 10.
+    lc : float, optional
+        High pass filter cutoff length, same units as x. Default is 30.
+    c : float, optional
         Parameterisation coefficient that should be determined by comparison of
         results from large eddy method with independent measure of TKED.
-    eff : float
+        Default is 1.
+    eff : float, optional
         Mixing efficiency, typically given a value of 0.2.
+    btype : {‘lowpass’, ‘highpass’, ‘bandpass’, ‘bandstop’}, optional
+        The type of filter. Default is ‘highpass’.
+    we : float
+        Random error in the vertical velocity [m s-1]
+    ret_noise : boolean, optional
+        Set as True to return additional noise information.
 
     Returns
     -------
@@ -584,6 +591,15 @@ def w_scales(w, x, N2, dx=1., width=10., lc=30., c=0.1,
         Turbulent kinetic energy dissipation (same length as input w). [W kg-1]
     kappa : array
         Diapycnal diffusivity. [m2 s-1]
+    epsilon_noise : array, optional
+        Value of the noise threshold of epsilon.
+    noise_flag : array, optional
+        Boolean flag, true if the epsilon value is smaller than the estimated
+        noise threshold.
+
+    References
+    ----------
+    Beaird et. al. 2012
 
     """
 
@@ -609,4 +625,10 @@ def w_scales(w, x, N2, dx=1., width=10., lc=30., c=0.1,
     epsilon = c*np.sqrt(N2_mean)*w_rms**2
     kappa = eff*epsilon/N2_mean
 
-    return epsilon, kappa
+    if ret_noise:
+        # True if epsilon value smaller than noise threshold.
+        epsilon_noise = c*np.sqrt(N2_mean)*we**2
+        noise_flag = epsilon < epsilon_noise
+        return epsilon, kappa, epsilon_noise, noise_flag
+    else:
+        return epsilon, kappa
