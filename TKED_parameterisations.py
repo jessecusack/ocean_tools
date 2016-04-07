@@ -7,6 +7,7 @@ A place for turbulent kinetic energy dissipation parameterisation functions.
 @author: jc3e13
 """
 
+import pdb
 import numpy as np
 import gsw
 import scipy.signal as sig
@@ -629,6 +630,68 @@ def w_scales(w, x, N2, dx=1., width=10., lc=30., c=1., eff=0.2,
         # True if epsilon value smaller than noise threshold.
         epsilon_noise = c*np.sqrt(N2_mean)*we**2
         noise_flag = epsilon < epsilon_noise
+        return epsilon, kappa, epsilon_noise, noise_flag
+    else:
+        return epsilon, kappa
+
+
+def w_scales_float(Float, hpids, xvar, x, width=10., lc=30., c=1., eff=0.2,
+                   btype='highpass', we=1e-3, ret_noise=False):
+    """Wrapper for the w_scales function that takes Float objects.
+
+    For xvar == timeheight, the signal is first low pass filtered in time and
+    then high pass filtered in space. lc must be an array with two elements,
+    the cut off time period and the cut off length.
+
+    """
+
+    __, idxs = Float.get_profiles(hpids, ret_idxs=True)
+    Np = len(idxs)
+    dx = x[1] - x[0]
+
+    w = Float.r_Ww[:, idxs]
+    N2 = Float.r_N2_ref[:, idxs]
+
+    if xvar == 'time':
+        __, __, w = Float.get_interp_grid(hpids, x, 'dUTC', 'Ww')
+        __, __, N2 = Float.get_interp_grid(hpids, x, 'dUTC', 'N2_ref')
+    elif xvar == 'height':
+        __, __, w = Float.get_interp_grid(hpids, x, 'z', 'Ww')
+        __, __, N2 = Float.get_interp_grid(hpids, x, 'z', 'N2_ref')
+    elif xvar == 'timeheight':
+        # First low-pass in time.
+        dt = 1.
+        t = np.arange(0., 15000., dt)
+        __, __, wt = Float.get_interp_grid(hpids, t, 'dUTC', 'Ww')
+        xc = 1./lc[0]  # cut off wavenumber
+        normal_cutoff = xc*dt*2.  # Nyquist frequency is half 1/dx.
+        b, a = sig.butter(4, normal_cutoff, btype='lowpass')
+        wf = sig.filtfilt(b, a, wt, axis=0)
+
+        # Now resample in depth space.
+        w = np.zeros((len(x), Np))
+        __, __, it = Float.get_interp_grid(hpids, x, 'z', 'dUTC')
+        __, __, N2 = Float.get_interp_grid(hpids, x, 'z', 'N2_ref')
+
+        for i in xrange(Np):
+            w[:, i] = np.interp(it[:, i], t, wf[:, i])
+
+        btype = 'highpass'
+        lc = lc[1]
+    else:
+        raise ValueError("xvar must either be 'time', 'height' or "
+                         "'timeheight'.")
+
+    epsilon = np.zeros_like(w)
+    kappa = np.zeros_like(w)
+    epsilon_noise = np.zeros_like(w)
+    noise_flag = np.zeros_like(w, dtype=bool)
+    for i in xrange(Np):
+        wp, N2p = w[:, i], N2[:, i]
+        epsilon[:, i], kappa[:, i], epsilon_noise[:, i], noise_flag[:, i] = \
+            w_scales(wp, x, N2p, dx, width, lc, c, eff, btype, we, True)
+
+    if ret_noise:
         return epsilon, kappa, epsilon_noise, noise_flag
     else:
         return epsilon, kappa
