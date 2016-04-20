@@ -20,7 +20,7 @@ N0 = 5.2e-3  # Buoyancy frequency [rad s-1].
 b = 1300.  # e-folding scale of N with depth [m].
 E0 = 6.3e-5  # Internal wave energy parameter.
 f_30 = 7.3e-5  # Coriolis frequency at 30N [rad s-1].
-epsilon_0 = 8e-10  # GM energy dissipation rate. Polzin 2014
+epsilon_0 = 8e-10  # GM energy dissipation rate (Polzin 2014).
 
 # Garrett and Kunze 1991 set.
 GK91 = {
@@ -119,21 +119,69 @@ class GM(object):
 
         return je/J
 
-    def disp(self, om, m=None):
-        """Displacement."""
+    def vert_disp(self, om, m=None):
+        """Vertical displacement."""
         return (self.b**2)*self.N0*(om**2 - self.f**2)/(self.N*om**2)
 
-    def vel(self, om, m=None):
-        """Velocity."""
+    def horiz_vel(self, om, m=None):
+        """Horizontal velocity."""
         return (self.b**2)*self.N0*self.N*(om**2 + self.f**2)/om**2
 
-#    def strain(self, om, m):
+    def vert_vel(self, om, m=None):
+        """Vertical velocity."""
+        # Note: no factor of 2pi with om here because it is already in radian
+        # units.
+        return self.vert_disp(om)*om**2
+
+#    def vert_strain(self, om, m):
 #        """Strain."""
-#        return self.disp(om)*(2.*np.pi*m)**2
+#        return self.vert_disp(om)*(2.*np.pi*m)**2
 #
-#    def shear(self, om, m):
+#    def vert_shear(self, om, m):
 #        """Shear."""
-#        return self.vel(om)*(2.*np.pi*m)**2
+#        return self.horiz_vel(om)*(2.*np.pi*m)**2
+
+    def Somm(self, om, m, Stype, rolloff=False, Er=E0):
+        """Garrett-Munk spectrum as a function of frequency and vertical
+        wavenumber.
+
+        Parameters
+        ----------
+        om: array
+            Frequency values. [rad s-1]
+        m: array
+            Vertical wavenumber values. [cpm]
+        Stype: string
+            Select between ['vert_dist', 'horiz_vel', 'vert_vel', 'vert_shear',
+            'vert_strain']. The last two are not working yet.
+        rolloff: boolean
+            If True, apply a rolloff after critical vertical wavenumber.
+            Default is False.
+        Er: float
+            Dimensionless energy of the internal wave field.
+
+        Returns
+        -------
+        S : array
+            Spectrum of size (len(m), len(om)).
+
+        """
+        Nom = len(om)
+        Nm = len(m)
+
+        S = np.zeros((Nm, Nom))
+
+        # Choose the spectral function that gives dimensionality.
+        Sfunc = getattr(self, Stype)
+
+        M = np.tile(m, (Nom, 1)).T
+
+        A = self._A(M, rolloff, Er)
+        B = self._B(om)
+        R = Sfunc(om, M)
+        S = self.E0*A*B*R
+
+        return S
 
     def Skm(self, k, m, Stype, rolloff=False, Er=E0):
         """Garrett-Munk spectrum as a function of horizontal wavenumber and
@@ -146,8 +194,8 @@ class GM(object):
         m: array
             Vertical wavenumber values. [cpm]
         Stype: string
-            Select between ['disp', 'vel', 'strain', 'shear']. The last two are
-            not working yet.
+            Select between ['vert_dist', 'horiz_vel', 'vert_vel', 'vert_shear',
+            'vert_strain']. The last two are not working yet.
         rolloff: boolean
             If True, apply a rolloff after critical vertical wavenumber.
             Default is False.
@@ -178,8 +226,8 @@ class GM(object):
         for i, _k in enumerate(k):
 
             # We use the scipy sqrt function here because it gives imaginary
-            # results for negative numbers, rather than NaN. I really have no
-            # idea what Zmax is supposed to represent.
+            # results for negative numbers, rather than NaN. I dont' know
+            # what Zmax is supposed to represent.
             Zmax = Z*sp.sqrt(M**2/_k**2 - 1).real
             omsq = _k**2/M**2*(Zmax**2+1)*(self.N**2-self.f**2) + self.f**2
             om = np.sqrt(omsq)
@@ -206,10 +254,67 @@ class GM(object):
 
             S[:, i] = np.trapz(TT)
 
-        # Some more constants.
+        # Some more constants. Why?
         S *= 2.*self.E0/np.pi
 
         return S
+
+    def Som(self, om, Stype, Nm=1000, rolloff=False, Er=E0):
+        """Garrett-Munk spectrum as a function of frequency.
+
+        Parameters
+        ----------
+        om: array
+            Frequency values. [rad m-1]
+        Stype: string
+            Select between ['vert_dist', 'horiz_vel', 'vert_vel', 'vert_shear',
+            'vert_strain']. The last two are not working yet.
+        Nm: int
+            Integration resolution.
+        rolloff: boolean
+            If True, apply a rolloff after critical vertical wavenumber.
+            Default is False.
+        Er: float
+            Dimensionless energy of the internal wave field.
+
+        Returns
+        -------
+        S : array
+            Spectrum of size (len(om),).
+
+        """
+        m = np.logspace(-4, 1, Nm)
+        S = self.Somm(om, m, Stype, rolloff, Er)
+        return np.trapz(S, m, axis=0)
+
+    def Sm(self, m, Stype, Nom=1000, rolloff=False, Er=E0):
+        """Garrett-Munk spectrum as a function of vertical wavenumber.
+
+        Parameters
+        ----------
+        m: array
+            Vertical wavenumber values. [cpm]
+        Stype: string
+            Select between ['vert_dist', 'horiz_vel', 'vert_vel', 'vert_shear',
+            'vert_strain']. The last two are not working yet.
+        Nom: int
+            Integration resolution.
+        rolloff: boolean
+            If True, apply a rolloff after critical vertical wavenumber.
+            Default is False.
+        Er: float
+            Dimensionless energy of the internal wave field.
+
+        Returns
+        -------
+        S : array
+            Spectrum of size (len(m),).
+
+        """
+        phi = np.arange(1, Nom+1)*np.arccos(self.eps)/Nom
+        om = self.f/np.cos(phi)
+        S = self.Somm(om, m, Stype, rolloff, Er)
+        return np.trapz(S, om, axis=1)
 
     def Sk(self, k, Stype, Nm=100, rolloff=False, Er=E0):
         """Garrett-Munk spectrum as a function of horizontal wavenumber.
@@ -219,8 +324,10 @@ class GM(object):
         k: array
             Horizontal wavenumber values. [cpm]
         Stype: string
-            Select between ['disp', 'vel', 'strain', 'shear']. The last two are
-            not working yet.
+            Select between ['vert_dist', 'horiz_vel', 'vert_vel', 'vert_shear',
+            'vert_strain']. The last two are not working yet.
+        Nm: int
+            Integration resolution.
         rolloff: boolean
             If True, apply a rolloff after critical vertical wavenumber.
             Default is False.
