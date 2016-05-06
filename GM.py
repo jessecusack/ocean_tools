@@ -23,7 +23,7 @@ f_30 = 7.3e-5  # Coriolis frequency at 30N [rad s-1].
 epsilon_0 = 8e-10  # GM energy dissipation rate (Polzin 2014).
 
 # Garrett and Kunze 1991 set.
-GK91 = {
+GM91 = {
     's': 1.,
     't': 2.,
     'jp': 0.,
@@ -37,7 +37,7 @@ GM76 = {
     'jstar': 3.}
 
 # Garrett and Munk 1975 set.
-GK75 = {
+GM75 = {
     's': 1.,
     't': 2.5,
     'jp': 0.,
@@ -58,6 +58,7 @@ class GM(object):
         self.b = kwargs.pop('b', b)
         self.N0 = kwargs.pop('N0', N0)
         self.E0 = kwargs.pop('E0', E0)
+        self.Ef = kwargs.pop('Ef', 0.)
 
         # Necessary parameters that vary between implimentations. Use Garrett
         # and Munk 1976 set by default.
@@ -72,7 +73,7 @@ class GM(object):
         """The frequency part of the GM spectrum."""
         return 2.*self.f/(np.pi*om*np.sqrt(om**2 - self.f**2))
 
-    def _A(self, m, rolloff=False, Er=E0):
+    def _A(self, m, rolloff):
         """The vertical wavenumber part of the GM spectrum.
         m in cycles per metre!
         Set Er to a non-zero value to include high wavenumber roll off."""
@@ -92,11 +93,12 @@ class GM(object):
         # If this is true, then roll off to m**-3 above m > 0.1 cpm.
         # Why to the power -3? Not sure.
         if rolloff:
-            # The magic 5 makes the critical wavenumber 0.1 cpm.
-            mc = Er/(5*self.E0)
-            r = (m/mc)**rop
-            r[m < mc] = 1.
-            A *= r
+            if ~(self.Ef > 0.):
+                raise ValueError('For rolloff set Ef > 0.')
+
+            A10 = (1/mstar)*I*(1 + ((0.1 - delta)/mstar)**self.s)**(-self.t/self.s)
+            Aa = A10*(10*m)**rop
+            A = np.minimum(Aa, self.Ef*A)
 
         return A
 
@@ -133,15 +135,15 @@ class GM(object):
         # units.
         return self.vert_disp(om)*om**2
 
-#    def vert_strain(self, om, m):
-#        """Strain."""
-#        return self.vert_disp(om)*(2.*np.pi*m)**2
-#
-#    def vert_shear(self, om, m):
-#        """Shear."""
-#        return self.horiz_vel(om)*(2.*np.pi*m)**2
+    def vert_strain(self, om, m):
+        """Strain."""
+        return self.vert_disp(om)*(2.*np.pi*m)**2
 
-    def Somm(self, om, m, Stype, rolloff=False, Er=E0):
+    def vert_shear(self, om, m):
+        """Shear."""
+        return self.horiz_vel(om)*(2.*np.pi*m)**2
+
+    def Somm(self, om, m, Stype, rolloff=False):
         """Garrett-Munk spectrum as a function of frequency and vertical
         wavenumber.
 
@@ -176,14 +178,14 @@ class GM(object):
 
         M = np.tile(m, (Nom, 1)).T
 
-        A = self._A(M, rolloff, Er)
+        A = self._A(M, rolloff)
         B = self._B(om)
         R = Sfunc(om, M)
         S = self.E0*A*B*R
 
         return S
 
-    def Skm(self, k, m, Stype, rolloff=False, Er=E0):
+    def Skm(self, k, m, Stype, rolloff=False):
         """Garrett-Munk spectrum as a function of horizontal wavenumber and
         vertical wavenumber.
 
@@ -221,7 +223,7 @@ class GM(object):
 
         Z = np.tile(np.linspace(0., 1., Nz), (Nm, 1))
         M = np.tile(m, (Nz, 1)).T
-        A = self._A(M, rolloff, Er)
+        A = self._A(M, rolloff)
 
         for i, _k in enumerate(k):
 
@@ -259,7 +261,7 @@ class GM(object):
 
         return S
 
-    def Som(self, om, Stype, Nm=1000, rolloff=False, Er=E0):
+    def Som(self, om, Stype, Nm=1000, rolloff=False):
         """Garrett-Munk spectrum as a function of frequency.
 
         Parameters
@@ -284,10 +286,10 @@ class GM(object):
 
         """
         m = np.logspace(-4, 1, Nm)
-        S = self.Somm(om, m, Stype, rolloff, Er)
+        S = self.Somm(om, m, Stype, rolloff)
         return np.trapz(S, m, axis=0)
 
-    def Sm(self, m, Stype, Nom=1000, rolloff=False, Er=E0):
+    def Sm(self, m, Stype, Nom=1000, rolloff=False):
         """Garrett-Munk spectrum as a function of vertical wavenumber.
 
         Parameters
@@ -313,10 +315,10 @@ class GM(object):
         """
         phi = np.arange(1, Nom+1)*np.arccos(self.eps)/Nom
         om = self.f/np.cos(phi)
-        S = self.Somm(om, m, Stype, rolloff, Er)
+        S = self.Somm(om, m, Stype, rolloff)
         return np.trapz(S, om, axis=1)
 
-    def Sk(self, k, Stype, Nm=100, rolloff=False, Er=E0):
+    def Sk(self, k, Stype, Nm=100, rolloff=False):
         """Garrett-Munk spectrum as a function of horizontal wavenumber.
 
         Parameters
@@ -341,7 +343,7 @@ class GM(object):
 
         """
         m = np.logspace(-4, 1, Nm)
-        S = self.Skm(k, m, Stype, rolloff, Er)
+        S = self.Skm(k, m, Stype, rolloff)
         return np.trapz(S, m, axis=0)
 
 
@@ -480,35 +482,97 @@ def disp_om(om, f, N):
 
 if __name__ == '__main__':
 
+    import matplotlib
     import matplotlib.pyplot as plt
 
-    print('Running tests\n')
+    matplotlib.rc('font', **{'size': 8})
 
-    f = 1.2e-4
-    N = 1.7e-3
-    k = np.logspace(-6, 0, 200)
-    om = np.logspace(np.log10(f), np.log10(N), 150)
-    omg, kg = np.meshgrid(om, k)
+    N = 5.2e-3
+    f = 7.292e-5  # f at 30 degrees.
+#    f = 1.031e-4  # f at 45 degrees.
 
-    mc = np.pi/5.
-    kc = mc*np.sqrt((om**2 - f**2)/(N**2 - om**2))/(2.*np.pi)
+    # %% Example of shear and strain.
+    m = np.logspace(-4, 0, 100)
+    G = GM(N, f, **GM76)
 
-    Somk = E_str_omk(omg, 2.*np.pi*kg, f, N, True)
-    Sk = E_str_k(2.*np.pi*k, f, N, True)
-    kmax = kg[np.unravel_index(Somk.argmax(), Somk.shape)]
+    fig, axs = plt.subplots(1, 2, figsize=(3.125, 3))
+    fig.tight_layout()
+    axs[0].loglog(m, G.Sm(m, 'vert_shear'), color='k')
+    axs[0].set_ylim(1e-6, 1e-3)
+    axs[0].set_xticks([1e-4, 1e-2, 1e0])
+    axs[1].loglog(m, G.Sm(m, 'vert_strain'), color='k')
+    axs[1].set_ylim(1e-2, 1e1)
+    axs[1].set_xticks([1e-4, 1e-2, 1e0])
 
-    fig, axs = plt.subplots(2, 1, gridspec_kw={'height_ratios':[1, 2]})
-    c = axs[1].contourf(1000.*k, 1800.*om/np.pi, 2.*np.pi*Somk.T,
-                        cmap=plt.get_cmap('afmhot'))
-    axs[1].plot(1000.*kc, 1800.*om/np.pi, color='b')
-    axs[1].vlines(1000.*kmax, *axs[1].get_ylim(), color='b')
-    axs[1].set_xlim(np.min(1000.*k), np.max(1000.*k))
-    axs[1].set_xscale('log')
-    axs[1].set_yscale('log')
-    plt.colorbar(c, orientation='horizontal')
+    # %% Variation in parameters.
+    m = np.logspace(-4, 0, 100)
+    GM76j6 = GM76.copy()
+    GM76j6['jstar'] = 6.
 
-    axs[1].set_ylabel('Frequency (cph)')
-    axs[1].set_xlabel('Horizontal wavenumber $k$ (cpkm)')
+    fig, ax = plt.subplots(1, 1, figsize=(3.125, 3))
 
-    axs[0].loglog(1000.*k, 2.*np.pi*Sk)
-    axs[0].set_ylabel('Horizontal strain variance (')
+    clrs = ['k', 'r', 'g']
+    for i, params in enumerate([GM76, GM91, GM76j6]):
+        G = GM(N, f, **params)
+        ax.loglog(m, G.Sm(m, 'vert_shear'), color=clrs[i])
+
+    ax.set_ylim(1e-6, 1e-3)
+    ax.legend(['GM76 $j_* = 3$', 'GM91 $j_* = 3$', 'GM76 $j_* = 6$'], loc=0)
+
+    # %% Experiment with roll-off.
+    Ef = np.array([10., 3., 1.1, 0.3])
+    m = np.logspace(-4, 0, 100)
+    clrs = ['r', 'g', 'b', 'm']
+
+    fig, ax = plt.subplots(1, 1, figsize=(3.125, 3))
+
+    # No rolloff case:
+    G = GM(N, f, **GM76)
+    ax.loglog(m, G.Sm(m, 'vert_shear'), color='k')
+    for i in xrange(len(Ef)):
+        G = GM(N, f, Ef=Ef[i], **GM76)
+        Sshear = G.Sm(m, 'vert_shear', rolloff=True)
+        ax.loglog(m, Sshear, color=clrs[i])
+
+    ax.set_ylim(1e-6, 2e-3)
+    ax.legend(['No roll-off', 'Ef = 10', 'Ef = 3', 'Ef = 1.1', 'Ef = 0.3'],
+              loc=0)
+
+    # %% Frequency spectra
+    om = np.logspace(np.log10(f), np.log10(N), 100)
+
+    G = GM(N, f, **GM76)
+
+    fig, ax = plt.subplots(1, 1, figsize=(3.125, 3))
+    Sshear = G.Som(om, 'vert_shear')
+    Sshear[0] = 0.  # Because value at f is very large.
+    ax.loglog(om, Sshear, color='k')
+
+    # Horizontal strain as a function of horizontal wavenumber
+
+#    k = np.logspace(-6, 0, 200)
+#    om = np.logspace(np.log10(f), np.log10(N), 150)
+#    omg, kg = np.meshgrid(om, k)
+#
+#    mc = np.pi/5.
+#    kc = mc*np.sqrt((om**2 - f**2)/(N**2 - om**2))/(2.*np.pi)
+#
+#    Somk = E_str_omk(omg, 2.*np.pi*kg, f, N, True)
+#    Sk = E_str_k(2.*np.pi*k, f, N, True)
+#    kmax = kg[np.unravel_index(Somk.argmax(), Somk.shape)]
+#
+#    fig, axs = plt.subplots(2, 1, gridspec_kw={'height_ratios':[1, 2]})
+#    c = axs[1].contourf(1000.*k, 1800.*om/np.pi, 2.*np.pi*Somk.T,
+#                        cmap=plt.get_cmap('afmhot'))
+#    axs[1].plot(1000.*kc, 1800.*om/np.pi, color='b')
+#    axs[1].vlines(1000.*kmax, *axs[1].get_ylim(), color='b')
+#    axs[1].set_xlim(np.min(1000.*k), np.max(1000.*k))
+#    axs[1].set_xscale('log')
+#    axs[1].set_yscale('log')
+#    plt.colorbar(c, orientation='horizontal')
+#
+#    axs[1].set_ylabel('Frequency (cph)')
+#    axs[1].set_xlabel('Horizontal wavenumber $k$ (cpkm)')
+#
+#    axs[0].loglog(1000.*k, 2.*np.pi*Sk)
+#    axs[0].set_ylabel('Horizontal strain variance (')
