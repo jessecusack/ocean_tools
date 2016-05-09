@@ -93,7 +93,7 @@ class GM(object):
         # If this is true, then roll off to m**-3 above m > 0.1 cpm.
         # Why to the power -3? Not sure.
         if rolloff:
-            if ~(self.Ef > 0.):
+            if not self.Ef > 0.:
                 raise ValueError('For rolloff set Ef > 0.')
 
             A10 = (1/mstar)*I*(1 + ((0.1 - delta)/mstar)**self.s)**(-self.t/self.s)
@@ -485,6 +485,7 @@ if __name__ == '__main__':
     import matplotlib
     import matplotlib.gridspec as gridspec
     import matplotlib.pyplot as plt
+    from scipy.integrate import cumtrapz
 
     matplotlib.rc('font', **{'size': 8})
 
@@ -560,13 +561,79 @@ if __name__ == '__main__':
 
     Somm = G.Somm(om, m, 'horiz_vel')
 
-    fig, ax = plt.subplots(1, 1, figsize=(6.5, 3))
-    ax.pcolormesh(om, m, np.log10(Somm))
-    ax.set_xscale('log')
-    ax.set_yscale('log')
-    ax.set_xlim(om[0], om[-1])
-    ax.set_ylim(m[0], m[-1])
+    gs = gridspec.GridSpec(2, 2, width_ratios=[3,1], height_ratios=[2,1])
 
+    fig = plt.figure(figsize=(6.5, 4))
+    ax1 = plt.subplot(gs[0])
+    ax2 = plt.subplot(gs[1])
+    ax3 = plt.subplot(gs[2])
+
+    ax1.pcolormesh(om, m, np.log10(Somm))
+    ax1.set_xscale('log')
+    ax1.set_yscale('log')
+    ax1.set_xlim(om[0], om[-1])
+    ax1.set_ylim(m[0], m[-1])
+    plt.setp(ax1.get_xticklabels(), visible=False)
+
+    for Nom in [2, 5, 20]:
+        Sm = G.Sm(m, 'horiz_vel', Nom, rolloff=True)
+        ax2.loglog(Sm, m, color='r')
+
+    ax2.set_xlim(1e-10, 1e10)
+    ax2.set_ylim(m[0], m[-1])
+    plt.setp(ax2.get_yticklabels(), visible=False)
+    ax2.set_xticks([1e-10, 1e0, 1e10])
+
+    clrs = ['k', 'r', 'g', 'b']
+    for i, Nm in enumerate([1000, 5, 50, 500]):
+        Som = G.Som(om, 'horiz_vel', Nm, rolloff=True)
+        ax3.loglog(om, Som, color=clrs[i])
+
+    ax3.set_xlim(om[0], om[-1])
+    ax3.set_ylim(1e-4, 2e3)
+    ax3.set_yticks([1e-4, 1e-2, 1e0, 1e2])
+
+
+    # %% Check of the buoyancy scaling
+    m = np.logspace(-4., 1., 1000)
+    G1 = GM(N, f, Ef=1., **GM76)
+    G2 = GM(2.*N, f, Ef=1., **GM76)
+
+    S1 = G1.Sm(m, 'vert_shear', rolloff=True)
+    S2 = G2.Sm(m, 'vert_shear', rolloff=True)
+
+    fig, axs = plt.subplots(2, 1, sharex='col', figsize=(3.125, 3))
+    fig.tight_layout()
+
+    axs[0].loglog(m, S1, color='k')
+    axs[0].loglog(m, S2, color='b')
+    axs[0].set_ylim(1e-8, 1e-2)
+
+    axs[1].loglog(m, cumtrapz(S1, m, initial=0.)/N**2, color='k')
+    axs[1].loglog(m, cumtrapz(S2, m, initial=0.)/(2.*N)**2, color='b')
+    axs[1].set_ylim(1e-4, 1e1)
+
+    # %% Horizontal spectra
+    k = np.logspace(-4, -1, 100)
+    m = np.logspace(-4, 1, 100)
+
+    G = GM(N, f, Ef=1., **GM76)
+    Skm = np.log10(G.Skm(k, m, 'vert_disp', rolloff=True))
+    Skm = np.ma.masked_invalid(Skm)
+    Sk = G.Sk(k, 'vert_disp', rolloff=True)
+
+    gs = gridspec.GridSpec(2, 1, height_ratios=[2,1])
+    fig = plt.figure(figsize=(3.125, 4))
+    ax1 = plt.subplot(gs[0])
+    ax2 = plt.subplot(gs[1])
+
+    ax1.pcolormesh(k, m, Skm)
+    ax1.set_xscale('log')
+    ax1.set_yscale('log')
+    plt.setp(ax1.get_xticklabels(), visible=False)
+
+    ax2.loglog(k, Sk*(2*np.pi*k)**2, color='k')
+#    ax2.loglog(k, G.Sk(k, 'vert_strain', rolloff=True), color='b')
 
     # Horizontal strain as a function of horizontal wavenumber
 
