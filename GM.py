@@ -483,6 +483,7 @@ def disp_om(om, f, N):
 if __name__ == '__main__':
 
     import matplotlib
+    import matplotlib.gridspec as gridspec
     import matplotlib.pyplot as plt
 
     matplotlib.rc('font', **{'size': 8})
@@ -547,6 +548,25 @@ if __name__ == '__main__':
     Sshear = G.Som(om, 'vert_shear')
     Sshear[0] = 0.  # Because value at f is very large.
     ax.loglog(om, Sshear, color='k')
+
+    # %% Combined vertical frequency spectra
+    eps = f/N
+    Nom = 1000.
+    phi = np.arange(1, Nom+1)*np.arccos(eps)/Nom
+    om = f/np.cos(phi)
+    m = np.logspace(-4., 1., 1000)
+
+    G = GM(N, f, Ef=1., **GM76)
+
+    Somm = G.Somm(om, m, 'horiz_vel')
+
+    fig, ax = plt.subplots(1, 1, figsize=(6.5, 3))
+    ax.pcolormesh(om, m, np.log10(Somm))
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.set_xlim(om[0], om[-1])
+    ax.set_ylim(m[0], m[-1])
+
 
     # Horizontal strain as a function of horizontal wavenumber
 
