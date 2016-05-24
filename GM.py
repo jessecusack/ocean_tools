@@ -15,7 +15,7 @@ import scipy as sp
 from scipy.special import gamma
 
 
-# Default parameter values and sets.
+# Default parameter values.
 N0 = 5.2e-3  # Buoyancy frequency [rad s-1].
 b = 1300.  # e-folding scale of N with depth [m].
 E0 = 6.3e-5  # Internal wave energy parameter.
@@ -42,6 +42,12 @@ GM75 = {
     't': 2.5,
     'jp': 0.,
     'jstar': 6.}
+
+IWEX = {
+    's': 1.,
+    't': 2.4,
+    'jp': 1.2,
+    'jstar': -1.}
 
 
 class GM(object):
@@ -347,6 +353,26 @@ class GM(object):
         return np.trapz(S, m, axis=0)
 
 
+def diff_Pspec(f, S):
+    """Differentiate power spectrum. Following Fourier theory this is
+    equivalent to multiplying by the frequency/wavenumber squared.
+
+        Parameters
+        ----------
+        f: array
+            Frequency or wavenumber values in non-angular units.
+        S: array
+            Spectrum.
+
+        Returns
+        -------
+        dS : array
+            Differentiated spectrum.
+
+    """
+    dS = S*(2.*np.pi*f)**2
+    return dS
+
 
 def H(j, j_star=3., N_sum=100000):
 
@@ -474,10 +500,6 @@ def E_str_k(k, f, N, j_star=3, rolloff=True, Er=E0):
     S = E_str_omk(omg, kg, f, N, j_star=j_star, rolloff=rolloff, Er=Er)
 
     return np.trapz(S, om, axis=1)
-
-
-def disp_om(om, f, N):
-    return b**2*N0*(om**2 - f**2)/(N*om**2)
 
 
 if __name__ == '__main__':
@@ -634,6 +656,19 @@ if __name__ == '__main__':
 
     ax2.loglog(k, Sk*(2*np.pi*k)**2, color='k')
 #    ax2.loglog(k, G.Sk(k, 'vert_strain', rolloff=True), color='b')
+
+    # %% Check spectrum well formed
+    m = np.logspace(-4, 1, 1100)
+    k = np.logspace(-6, 1, 1100)
+
+    G = GM(N, f, Ef=1., **GM76)
+    Skm = G.Skm(k, m, 'vert_disp', rolloff=True)
+    Sm = G.Sm(m, 'vert_disp', rolloff=True)
+
+    fig = plt.figure(figsize=(3.125, 4))
+    plt.loglog(m, np.pi*0.5*diff_Pspec(m, np.trapz(Skm, k)), 'k--')
+    plt.loglog(m, diff_Pspec(m, Sm), 'k')
+
 
     # Horizontal strain as a function of horizontal wavenumber
 
