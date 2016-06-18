@@ -658,6 +658,9 @@ def w_scales_float(Float, hpids, xvar, x, width=10., lc=30., c=1., eff=0.2,
     elif xvar == 'height':
         __, __, w = Float.get_interp_grid(hpids, x, 'z', 'Ww')
         __, __, N2 = Float.get_interp_grid(hpids, x, 'z', 'N2_ref')
+    elif xvar == 'eheight':
+        __, __, w = Float.get_interp_grid(hpids, x, 'zw', 'Ww')
+        __, __, N2 = Float.get_interp_grid(hpids, x, 'zw', 'N2_ref')
     elif xvar == 'timeheight':
         # First low-pass in time.
         dt = 1.
@@ -679,7 +682,7 @@ def w_scales_float(Float, hpids, xvar, x, width=10., lc=30., c=1., eff=0.2,
         btype = 'highpass'
         lc = lc[1]
     else:
-        raise ValueError("xvar must either be 'time', 'height' or "
+        raise ValueError("xvar must either be 'time', 'height', 'eheight' or "
                          "'timeheight'.")
 
     epsilon = np.zeros_like(w)
