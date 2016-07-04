@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import os
 
 
-def my_savefig(fig, fid, fname, sdir, fsize=None, lock_aspect=True,
+def my_savefig(fig, name, sdir, fsize=None, lock_aspect=True,
                ftype='png', font_size=None, **kwargs):
     """Savefig function that rescales plots for publication in AMS journals.
 
@@ -17,10 +17,8 @@ def my_savefig(fig, fid, fname, sdir, fsize=None, lock_aspect=True,
     ----------
     fig: figure object
         Figure to save.
-    fid:
-        Figure identifyer 1.
-    name:
-        Figure name. (To be merged with fid in future.)
+    name: string
+        Filename not including extension.
     sdir: string
         Save directory.
     fsize: tuple
@@ -70,14 +68,12 @@ def my_savefig(fig, fid, fname, sdir, fsize=None, lock_aspect=True,
                 item.set_fontsize(font_size)
         fig.canvas.draw()
 
-    fname = str(fid) + '_' + fname
-
     if type(ftype) is tuple:
         for ft in ftype:
-            fn = os.path.join(sdir, fname) + '.' + ft
+            fn = os.path.join(sdir, name) + '.' + ft
             plt.savefig(fn, dpi=300., bbox_inches='tight', pad_inches=0.,
                         **kwargs)
     else:
-        fname = os.path.join(sdir, fname) + '.' + ftype
+        fname = os.path.join(sdir, name) + '.' + ftype
         plt.savefig(fname, dpi=300., bbox_inches='tight', pad_inches=0.,
                     **kwargs)
