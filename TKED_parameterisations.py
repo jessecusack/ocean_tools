@@ -661,7 +661,7 @@ def w_scales_float(Float, hpids, xvar, x, width=10., lc=30., c=1., eff=0.2,
     elif xvar == 'eheight':
         __, __, w = Float.get_interp_grid(hpids, x, 'zw', 'Ww')
         __, __, N2 = Float.get_interp_grid(hpids, x, 'zw', 'N2_ref')
-    elif xvar == 'timeheight':
+    elif (xvar == 'timeheight') or (xvar == 'timeeheight'):
         # First low-pass in time.
         dt = 1.
         t = np.arange(0., 15000., dt)
@@ -673,8 +673,13 @@ def w_scales_float(Float, hpids, xvar, x, width=10., lc=30., c=1., eff=0.2,
 
         # Now resample in depth space.
         w = np.zeros((len(x), Np))
-        __, __, it = Float.get_interp_grid(hpids, x, 'z', 'dUTC')
-        __, __, N2 = Float.get_interp_grid(hpids, x, 'z', 'N2_ref')
+
+        if xvar == 'timeheight':
+            __, __, N2 = Float.get_interp_grid(hpids, x, 'z', 'N2_ref')
+            __, __, it = Float.get_interp_grid(hpids, x, 'z', 'dUTC')
+        elif xvar == 'timeeheight':
+            __, __, N2 = Float.get_interp_grid(hpids, x, 'zw', 'N2_ref')
+            __, __, it = Float.get_interp_grid(hpids, x, 'zw', 'dUTC')
 
         for i in xrange(Np):
             w[:, i] = np.interp(it[:, i], t, wf[:, i])
