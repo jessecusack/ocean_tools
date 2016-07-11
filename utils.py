@@ -105,7 +105,7 @@ def distll(lon_0, lat_0, x, y):
     return lons, lats
 
 
-def flip_cols(data, cols=None):
+def flip_padded(data, cols=None):
     """Input an array of data. Receive flipped array. If array is two
     dimensional then a list of columns should be provided else the whole matrix
     will be flipped. This is different from the numpy.flipud function because
