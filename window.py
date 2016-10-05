@@ -92,8 +92,8 @@ def window(x, y, width, overlap=0., x_0=None, expansion=None, cap_left=True,
     # Incredibly bad check for monotonicity.
     not_monotonic = np.sum(np.diff(x) < 0) > 0.2*len(x)
     if not_monotonic:
-        x = utils.flip_cols(x)
-        y = utils.flip_cols(y)
+        x = utils.flip_padded(x)
+        y = utils.flip_padded(y)
 
     if x_0 is not None:
         idxs = ~np.isnan(x) & (x >= x_0)
