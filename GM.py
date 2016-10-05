@@ -160,7 +160,7 @@ class GM(object):
         m: array
             Vertical wavenumber values. [cpm]
         Stype: string
-            Select between ['vert_dist', 'horiz_vel', 'vert_vel', 'vert_shear',
+            Select between ['vert_disp', 'horiz_vel', 'vert_vel', 'vert_shear',
             'vert_strain']. The last two are not working yet.
         rolloff: boolean
             If True, apply a rolloff after critical vertical wavenumber.
@@ -202,7 +202,7 @@ class GM(object):
         m: array
             Vertical wavenumber values. [cpm]
         Stype: string
-            Select between ['vert_dist', 'horiz_vel', 'vert_vel', 'vert_shear',
+            Select between ['vert_disp', 'horiz_vel', 'vert_vel', 'vert_shear',
             'vert_strain']. The last two are not working yet.
         rolloff: boolean
             If True, apply a rolloff after critical vertical wavenumber.
@@ -275,7 +275,7 @@ class GM(object):
         om: array
             Frequency values. [rad m-1]
         Stype: string
-            Select between ['vert_dist', 'horiz_vel', 'vert_vel', 'vert_shear',
+            Select between ['vert_disp', 'horiz_vel', 'vert_vel', 'vert_shear',
             'vert_strain']. The last two are not working yet.
         Nm: int
             Integration resolution.
@@ -303,7 +303,7 @@ class GM(object):
         m: array
             Vertical wavenumber values. [cpm]
         Stype: string
-            Select between ['vert_dist', 'horiz_vel', 'vert_vel', 'vert_shear',
+            Select between ['vert_disp', 'horiz_vel', 'vert_vel', 'vert_shear',
             'vert_strain']. The last two are not working yet.
         Nom: int
             Integration resolution.
@@ -332,7 +332,7 @@ class GM(object):
         k: array
             Horizontal wavenumber values. [cpm]
         Stype: string
-            Select between ['vert_dist', 'horiz_vel', 'vert_vel', 'vert_shear',
+            Select between ['vert_disp', 'horiz_vel', 'vert_vel', 'vert_shear',
             'vert_strain']. The last two are not working yet.
         Nm: int
             Integration resolution.
@@ -500,6 +500,11 @@ def E_str_k(k, f, N, j_star=3, rolloff=True, Er=E0):
     S = E_str_omk(omg, kg, f, N, j_star=j_star, rolloff=rolloff, Er=Er)
 
     return np.trapz(S, om, axis=1)
+
+
+def E_VKE(m, f, N, j_star=3, b_=b):
+    """Thurnherr 2015, takes angular m presumably."""
+    return np.pi*E0*b_*np.abs(f)*N0*j_star/(m**2 + beta_star(N, j_star)**2)
 
 
 if __name__ == '__main__':
