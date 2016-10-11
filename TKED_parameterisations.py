@@ -424,7 +424,7 @@ def analyse(z, U, V, dUdz, dVdz, strain, N2_ref, lat, params=default_params):
         EK[i] = IEK
         R_pol[i] = ICCW/ICW
         R_om[i] = Ishear/Istrain
-        epsilon[i] = GM.epsilon_0*N2_mean/GM.N_0**2*Ishear**2/IGMshear**2
+        epsilon[i] = GM.epsilon_0*N2_mean/GM.N0**2*Ishear**2/IGMshear**2
         # Apply correcting factors
 
         epsilon[i] *= L(gsw.f(lat), N_mean)*h_gregg(R_om[i])
@@ -492,7 +492,7 @@ def analyse(z, U, V, dUdz, dVdz, strain, N2_ref, lat, params=default_params):
     return z_mean, EK, R_pol, R_om, epsilon, kappa
 
 
-def thorpe_scales(z, x):
+def thorpe_scales(z, x, acc=1e-3):
     """ """
 
 #    flip_z = False
@@ -518,8 +518,8 @@ def thorpe_scales(z, x):
     # Calculate thorpe displacements.
     thorpe_disp = z[idxs] - z
 
-    # Indix displacements.
-    idxs_disp = idxs - np.arange(0, len(idxs))
+    # Index displacements.
+    idxs_disp = idxs - np.arange(len(idxs))
 
     # Overturn bounds where cumulative sum is zero.
     idxs_sum = np.cumsum(idxs_disp)
@@ -533,7 +533,7 @@ def thorpe_scales(z, x):
         if jdxs[i+1] - jdxs[i] > 1:
             # Check for noise.
             q = x_sorted[jdxs[i+1]] - x_sorted[jdxs[i]]
-            if q < 1e-3:
+            if q < acc:
                 print('Below measurement accuracy.')
                 continue
 
@@ -551,7 +551,7 @@ def thorpe_scales(z, x):
     return thorpe_scales, thorpe_disp, x_sorted, idxs
 
 
-def w_scales(w, x, N2, dx=1., width=10., lc=30., c=1., eff=0.2,
+def w_scales(w, x, N2, dx=1., width=10., overlap=-1., lc=30., c=1., eff=0.2,
              btype='highpass', we=1e-3, ret_noise=False):
     """
     Estimate turbulent kinetic energy dissipation from vertical velocity
@@ -612,8 +612,8 @@ def w_scales(w, x, N2, dx=1., width=10., lc=30., c=1., eff=0.2,
     # Filter the data.
     w_filt = sig.filtfilt(b, a, w)
 
-    w_wdws = wdw.window(x, w_filt, width=width, overlap=-1.)
-    N2_wdws = wdw.window(x, N2, width=width, overlap=-1.)
+    w_wdws = wdw.window(x, w_filt, width=width, overlap=overlap)
+    N2_wdws = wdw.window(x, N2, width=width, overlap=overlap)
 
     w_rms = np.zeros_like(x)
     N2_mean = np.zeros_like(x)
@@ -632,3 +632,61 @@ def w_scales(w, x, N2, dx=1., width=10., lc=30., c=1., eff=0.2,
         return epsilon, kappa, epsilon_noise, noise_flag
     else:
         return epsilon, kappa
+
+
+def VKE_method(z, w, width=320., overlap=160., c=0.021, m0=1., mc=0.1):
+    """
+    Estimate turbulent kinetic energy dissipation from large scale vertical
+    kinetic energy (VKE).
+
+    Parameters
+    ----------
+    z : array
+        Height (negative depth), must be regularly spaced [m]
+    w : array
+        Vertical velocity [m s-1]
+    width : float, optional
+        Width of box over which to calculate VKE (wider boxes use more
+        measurements) [m]
+    overlap : float, optional
+        Box overlap [m]
+    c : float, optional
+        Parameterisation coefficient that is quoted in reference [1] [s-0.5]
+    m0 : float, optional
+        Another parameterisation coefficient [rad m-1]
+    mc : float, optional
+        Cut off high wavernumber for fit [rad m-1]
+
+    Returns
+    -------
+    z_mid : array
+        Height at box middles [m]
+    epsilon : array
+        Turbulent kinetic energy dissipation (same length as input w). [W kg-1]
+
+
+    References
+    ----------
+    [1] Thurnherr et. al. 2015
+
+    """
+    C = c*m0**2
+    wdws = wdw.window(z, w, width, overlap, cap_left=True, cap_right=True)
+    epsilon = []
+    z_mid = []
+
+    for i, (z_, w_) in enumerate(wdws):
+        m, VKE = sig.periodogram(w_)
+        # Convert to radian units.
+        VKE /= 2*np.pi
+        m *= 2*np.pi
+        use = (m < mc) & (m != 0)
+        VKE = VKE[use]
+        m = m[use]
+        B = np.polyfit(np.zeros(len(VKE)), np.log(VKE) + 2*np.log(m), 0)
+        p0 = np.exp(B)
+        eps = (p0/C)**2
+        epsilon.append(eps)
+        z_mid.append((z_[0] + z_[-1])/2.)
+
+    return np.asarray(z_mid), np.asarray(epsilon)
