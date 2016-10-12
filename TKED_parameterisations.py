@@ -492,16 +492,53 @@ def analyse(z, U, V, dUdz, dVdz, strain, N2_ref, lat, params=default_params):
     return z_mean, EK, R_pol, R_om, epsilon, kappa
 
 
-def thorpe_scales(z, x, acc=1e-3):
-    """ """
+def intermediate_profile(x, xhinge, delta):
+    """Generate an intermediate profile of some quantity.
+    Ferron et. al. 1998
 
-#    flip_z = False
+    Returns the 'top down' and 'bottom up' profiles as well as the average
+    of the two.
+
+    """
+
+    xf = np.flipud(x)
+
+    xtd = np.zeros_like(x)
+    xbu = np.zeros_like(x)
+
+    ntd = np.fix(x[0]/delta - xhinge/delta)
+    nbu = np.fix(xf[0]/delta - xhinge/delta)
+
+    xtd[0] = xhinge + ntd*delta
+    xbu[0] = xhinge + nbu*delta
+
+    for i in xrange(len(x) - 1):
+        ntd = np.fix(x[i+1]/delta - xtd[i]/delta)
+        nbu = np.fix(xf[i+1]/delta - xbu[i]/delta)
+
+        xtd[i+1] = xtd[i] + ntd*delta
+        xbu[i+1] = xbu[i] + nbu*delta
+
+    xbu = np.flipud(xbu)
+
+    xav = (xtd + xbu)/2.
+
+    return xtd, xbu, xav
+
+
+def thorpe_scales(z, x, acc=1e-3, R0=0.25):
+    """Thorpe et. al. 1977
+    Code modified from Kurt Polzin I believe.
+    Contains Garret and Garner 2008 validation ratio.
+    """
+
+    #    flip_z = False
     flip_x = False
 
     # z should be increasing apparently
     if z[0] > z[-1]:
         z = np.flipud(z)
-#        flip_z = True
+    #        flip_z = True
 
     # x should be increasing too... I'm personally not sure about this but ok.
     if x[0] > x[-1]:
@@ -524,9 +561,11 @@ def thorpe_scales(z, x, acc=1e-3):
     # Overturn bounds where cumulative sum is zero.
     idxs_sum = np.cumsum(idxs_disp)
 
-    jdxs = np.argwhere(idxs_sum == 0)
+    jdxs = np.squeeze(np.argwhere(idxs_sum == 0))
 
     thorpe_scales = np.zeros_like(x)
+    L_o = np.zeros_like(x)
+    R = np.zeros_like(x)
 
     # Calculate the RMS thorpe displacement over each overturn.
     for i in xrange(len(jdxs)-1):
@@ -537,7 +576,22 @@ def thorpe_scales(z, x, acc=1e-3):
                 print('Below measurement accuracy.')
                 continue
 
-            zrms = np.std(thorpe_disp[jdxs[i]:jdxs[i+1]])
+            L_tot = z[jdxs[i+1]] - z[jdxs[i]]
+            thorpe_disp_o = thorpe_disp[jdxs[i]:jdxs[i+1]]
+
+            zeroidx = np.searchsorted(thorpe_disp_o, 0., side='right')
+            L_neg = z[jdxs[i] + zeroidx] - z[jdxs[i]]
+            L_pos = z[jdxs[i+1]] - z[jdxs[i] + zeroidx]
+            R_ = np.minimum(L_neg/L_tot, L_pos/L_tot)
+
+            if R_ < R0:
+                print('Salinity spike probably')
+                continue
+
+            L_o[jdxs[i]:jdxs[i+1]] = L_tot
+            R[jdxs[i]:jdxs[i+1]] = R_
+
+            zrms = np.std(thorpe_disp_o)
             thorpe_scales[jdxs[i]:jdxs[i+1]] = zrms
 
     # Lastly if the arrays were not increasing at the beginning and were
