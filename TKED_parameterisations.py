@@ -526,7 +526,7 @@ def intermediate_profile(x, xhinge, delta):
     return xtd, xbu, xav
 
 
-def thorpe_scales(z, x, acc=1e-3, R0=0.25):
+def thorpe_scales(z, x, acc=1e-3, R0=0.25, full_output=False):
     """Thorpe et. al. 1977
     Code modified from Kurt Polzin I believe.
     Contains Garret and Garner 2008 validation ratio.
@@ -541,12 +541,14 @@ def thorpe_scales(z, x, acc=1e-3, R0=0.25):
     #        flip_z = True
 
     # x should be increasing too... I'm personally not sure about this but ok.
+    # It should...
     if x[0] > x[-1]:
         x = np.flipud(x)
         flip_x = True
 
-    # Make sure that no overturns involve the first data point, why?
+    # Make sure that no overturns involve the first or last points.
     x[0] = x.min() - 1.
+    x[-1] = x.max() + 1
 
     # Sort the profile.
     idxs = np.argsort(x)
@@ -561,11 +563,14 @@ def thorpe_scales(z, x, acc=1e-3, R0=0.25):
     # Overturn bounds where cumulative sum is zero.
     idxs_sum = np.cumsum(idxs_disp)
 
-    jdxs = np.squeeze(np.argwhere(idxs_sum == 0))
+    # This plus 1 here seems to make the indexing work in python.
+    jdxs = np.squeeze(np.argwhere(idxs_sum == 0)) + 1
 
     thorpe_scales = np.zeros_like(x)
     L_o = np.zeros_like(x)
     R = np.zeros_like(x)
+    L_neg = np.zeros_like(x)
+    L_pos = np.zeros_like(x)
 
     # Calculate the RMS thorpe displacement over each overturn.
     for i in xrange(len(jdxs)-1):
@@ -573,21 +578,28 @@ def thorpe_scales(z, x, acc=1e-3, R0=0.25):
             # Check for noise.
             q = x_sorted[jdxs[i+1]] - x_sorted[jdxs[i]]
             if q < acc:
-                print('Below measurement accuracy.')
+#                print('Below measurement accuracy.')
                 continue
 
-            L_tot = z[jdxs[i+1]] - z[jdxs[i]]
+#            L_tot = z[jdxs[i+1]] - z[jdxs[i]]
             thorpe_disp_o = thorpe_disp[jdxs[i]:jdxs[i+1]]
 
-            zeroidx = np.searchsorted(thorpe_disp_o, 0., side='right')
-            L_neg = z[jdxs[i] + zeroidx] - z[jdxs[i]]
-            L_pos = z[jdxs[i+1]] - z[jdxs[i] + zeroidx]
-            R_ = np.minimum(L_neg/L_tot, L_pos/L_tot)
+#            zeroidx = np.searchsorted(thorpe_disp_o, 0., side='right')
+#            L_neg_ = z[jdxs[i] + zeroidx] - z[jdxs[i]]
+#            L_pos_ = z[jdxs[i+1]] - z[jdxs[i] + zeroidx]
+#            R_ = np.minimum(L_neg_/L_tot, L_pos_/L_tot)
+
+            L_tot = 1.*thorpe_disp_o.size
+            L_neg_ = 1.*np.sum(thorpe_disp_o < 0)
+            L_pos_ = 1.*np.sum(thorpe_disp_o > 0)
+            R_ = np.minimum(L_neg_/L_tot, L_pos_/L_tot)
 
             if R_ < R0:
-                print('Salinity spike probably')
+#                print('Salinity spike probably.')
                 continue
 
+            L_neg[jdxs[i]:jdxs[i+1]] = L_neg_
+            L_pos[jdxs[i]:jdxs[i+1]] = L_pos_
             L_o[jdxs[i]:jdxs[i+1]] = L_tot
             R[jdxs[i]:jdxs[i+1]] = R_
 
@@ -601,8 +613,15 @@ def thorpe_scales(z, x, acc=1e-3, R0=0.25):
         thorpe_disp = np.flipud(thorpe_disp)
         x_sorted = np.flipud(x_sorted)
         idxs = np.flipud(idxs)
+        L_o = np.flipud(L_o)
+        L_neg = np.flipud(L_neg)
+        L_pos = np.flipud(L_pos)
+        R = np.flipud(R)
 
-    return thorpe_scales, thorpe_disp, x_sorted, idxs
+    if full_output:
+        return thorpe_scales, thorpe_disp, (L_o, L_neg, L_pos), R, x_sorted, idxs
+    else:
+        return thorpe_scales, thorpe_disp
 
 
 def w_scales(w, x, N2, dx=1., width=10., overlap=-1., lc=30., c=1., eff=0.2,
