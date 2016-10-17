@@ -530,6 +530,7 @@ def thorpe_scales(z, x, acc=1e-3, R0=0.25, full_output=False):
     """Thorpe et. al. 1977
     Code modified from Kurt Polzin I believe.
     Contains Garret and Garner 2008 validation ratio.
+    Contains Smyth 2001 buoyancy frequency estimate.
     """
 
     #    flip_z = False
@@ -540,8 +541,7 @@ def thorpe_scales(z, x, acc=1e-3, R0=0.25, full_output=False):
         z = np.flipud(z)
     #        flip_z = True
 
-    # x should be increasing too... I'm personally not sure about this but ok.
-    # It should...
+    # x should be increasing too...
     if x[0] > x[-1]:
         x = np.flipud(x)
         flip_x = True
@@ -571,6 +571,7 @@ def thorpe_scales(z, x, acc=1e-3, R0=0.25, full_output=False):
     R = np.zeros_like(x)
     L_neg = np.zeros_like(x)
     L_pos = np.zeros_like(x)
+    Nsq = np.zeros_like(x)
 
     # Calculate the RMS thorpe displacement over each overturn.
     for i in xrange(len(jdxs)-1):
@@ -581,8 +582,9 @@ def thorpe_scales(z, x, acc=1e-3, R0=0.25, full_output=False):
 #                print('Below measurement accuracy.')
                 continue
 
+            odxs = slice(jdxs[i], jdxs[i+1])
 #            L_tot = z[jdxs[i+1]] - z[jdxs[i]]
-            thorpe_disp_o = thorpe_disp[jdxs[i]:jdxs[i+1]]
+            thorpe_disp_o = thorpe_disp[odxs]
 
 #            zeroidx = np.searchsorted(thorpe_disp_o, 0., side='right')
 #            L_neg_ = z[jdxs[i] + zeroidx] - z[jdxs[i]]
@@ -598,13 +600,19 @@ def thorpe_scales(z, x, acc=1e-3, R0=0.25, full_output=False):
 #                print('Salinity spike probably.')
                 continue
 
-            L_neg[jdxs[i]:jdxs[i+1]] = L_neg_
-            L_pos[jdxs[i]:jdxs[i+1]] = L_pos_
-            L_o[jdxs[i]:jdxs[i+1]] = L_tot
-            R[jdxs[i]:jdxs[i+1]] = R_
+            L_neg[odxs] = L_neg_
+            L_pos[odxs] = L_pos_
+            L_o[odxs] = L_tot
+            R[odxs] = R_
 
             zrms = np.std(thorpe_disp_o)
-            thorpe_scales[jdxs[i]:jdxs[i+1]] = zrms
+            thorpe_scales[odxs] = zrms
+
+            sigma_rms = np.std(x[odxs] - x_sorted[odxs])
+            dsigmadz = sigma_rms/zrms
+            sigma_0 = np.mean(x[odxs])
+            g = -9.81  # Gravity.
+            Nsq[odxs] = -g/sigma_0 * dsigmadz
 
     # Lastly if the arrays were not increasing at the beginning and were
     # flipped they need to be put back how they were.
@@ -617,9 +625,10 @@ def thorpe_scales(z, x, acc=1e-3, R0=0.25, full_output=False):
         L_neg = np.flipud(L_neg)
         L_pos = np.flipud(L_pos)
         R = np.flipud(R)
+        Nsq = np.flipud(Nsq)
 
     if full_output:
-        return thorpe_scales, thorpe_disp, (L_o, L_neg, L_pos), R, x_sorted, idxs
+        return thorpe_scales, thorpe_disp, Nsq, (L_o, L_neg, L_pos), R, x_sorted, idxs
     else:
         return thorpe_scales, thorpe_disp
 
