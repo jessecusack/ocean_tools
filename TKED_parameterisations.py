@@ -547,8 +547,8 @@ def thorpe_scales(z, x, acc=1e-3, R0=0.25, full_output=False):
         flip_x = True
 
     # Make sure that no overturns involve the first or last points.
-    x[0] = x.min() - 1.
-    x[-1] = x.max() + 1
+    x[0] = x.min() - 1e-8
+    x[-1] = x.max() + 1e-8
 
     # Sort the profile.
     idxs = np.argsort(x)
@@ -608,11 +608,16 @@ def thorpe_scales(z, x, acc=1e-3, R0=0.25, full_output=False):
             zrms = np.std(thorpe_disp_o)
             thorpe_scales[odxs] = zrms
 
+            # TODO: add a condition to allow this only when x is density.
             sigma_rms = np.std(x[odxs] - x_sorted[odxs])
             dsigmadz = sigma_rms/zrms
             sigma_0 = np.mean(x[odxs])
             g = -9.81  # Gravity.
             Nsq[odxs] = -g/sigma_0 * dsigmadz
+
+            # This is a terrible bug fix but effective.
+            if dsigmadz == 0.:
+                thorpe_scales[odxs] = 0.
 
     # Lastly if the arrays were not increasing at the beginning and were
     # flipped they need to be put back how they were.
