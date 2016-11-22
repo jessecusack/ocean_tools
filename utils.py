@@ -41,16 +41,51 @@ def datenum_to_datetime(datenum):
         except ValueError:
             return np.nan
 
-    try:
-        # If datenum is not iterable it will raise a TypeError. I could just
-        # check whether it is iterable first... !
-        pydt = np.array([convert(el) for el in datenum])
-
-    except TypeError:
-
+    if np.iterable(datenum):
+        datenumar = np.asarray(datenum)
+        shape = datenumar.shape
+        pydt = np.array([convert(el) for el in datenumar.flat])
+        pydt = pydt.reshape(shape)
+    else:
         pydt = convert(datenum)
 
     return pydt
+
+
+def datetime_to_datenum(pydt):
+    """
+    Convert a python datetime object into a MATLAB datenum.
+
+    Parameters
+    ----------
+    pydt : array_like
+        Python datetime. See datetime module.
+
+    Returns
+    -------
+    datenum : ndarray
+        MATLAB datenumber which is the number of days since 0001-01-01.
+
+    """
+
+    def convert(pydt):
+        try:
+            mdn = pydt + dt.timedelta(days=366)
+            frac_seconds = (pydt - dt.datetime(pydt.year, pydt.month, pydt.day)).seconds/86400.
+            frac_microseconds = pydt.microsecond/8.64e10
+            return mdn.toordinal() + frac_seconds + frac_microseconds
+        except ValueError:
+            return np.nan
+
+    if np.iterable(pydt):
+        pydtar = np.asarray(pydt)
+        shape = pydtar.shape
+        datenum = np.array([convert(el) for el in pydtar.flat])
+        datenum = datenum.reshape(shape)
+    else:
+        datenum = convert(pydt)
+
+    return datenum
 
 
 def lldist(lon, lat):
