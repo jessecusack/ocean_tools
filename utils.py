@@ -10,7 +10,7 @@ all into one miscellaneous 'utilities' module.
 """
 
 import numpy as np
-import datetime as dt
+from datetime import datetime, timedelta
 
 
 class Bunch(object):
@@ -29,36 +29,36 @@ def datenum_to_datetime(datenum):
 
     Returns
     -------
-    pydt : ndarray
+    dt : ndarray
         Python datetime. See datetime module.
 
     """
 
     def convert(datenum):
         try:
-            return dt.datetime.fromordinal(int(datenum)) + \
-                dt.timedelta(days=datenum % 1) - dt.timedelta(days=366)
+            return datetime.fromordinal(int(datenum)) + \
+                timedelta(days=datenum % 1) - timedelta(days=366)
         except ValueError:
             return np.nan
 
     if np.iterable(datenum):
         datenumar = np.asarray(datenum)
         shape = datenumar.shape
-        pydt = np.array([convert(el) for el in datenumar.flat])
-        pydt = pydt.reshape(shape)
+        dt = np.array([convert(el) for el in datenumar.flat])
+        dt = dt.reshape(shape)
     else:
-        pydt = convert(datenum)
+        dt = convert(datenum)
 
-    return pydt
+    return dt
 
 
-def datetime_to_datenum(pydt):
+def datetime_to_datenum(dt):
     """
     Convert a python datetime object into a MATLAB datenum.
 
     Parameters
     ----------
-    pydt : array_like
+    dt : array_like
         Python datetime. See datetime module.
 
     Returns
@@ -68,22 +68,22 @@ def datetime_to_datenum(pydt):
 
     """
 
-    def convert(pydt):
+    def convert(dt):
         try:
-            mdn = pydt + dt.timedelta(days=366)
-            frac_seconds = (pydt - dt.datetime(pydt.year, pydt.month, pydt.day)).seconds/86400.
-            frac_microseconds = pydt.microsecond/8.64e10
+            mdn = dt + timedelta(days=366)
+            frac_seconds = (dt - datetime(dt.year, dt.month, dt.day)).seconds/86400.
+            frac_microseconds = dt.microsecond/8.64e10
             return mdn.toordinal() + frac_seconds + frac_microseconds
         except ValueError:
             return np.nan
 
-    if np.iterable(pydt):
-        pydtar = np.asarray(pydt)
-        shape = pydtar.shape
-        datenum = np.array([convert(el) for el in pydtar.flat])
+    if np.iterable(dt):
+        dtar = np.asarray(dt)
+        shape = dtar.shape
+        datenum = np.array([convert(el) for el in dtar.flat])
         datenum = datenum.reshape(shape)
     else:
-        datenum = convert(pydt)
+        datenum = convert(dt)
 
     return datenum
 
