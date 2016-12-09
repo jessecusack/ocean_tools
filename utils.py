@@ -457,7 +457,7 @@ def spherical_polar_area(r, lon, lat):
     return solid_angle.T*r**2
 
 
-def loadmat(filename):
+def loadmat(filename, **kwargs):
     '''
     Big thanks to mergen on stackexchange for this:
         http://stackoverflow.com/a/8832212
@@ -467,7 +467,9 @@ def loadmat(filename):
     from mat files. It calls the function check keys to cure all entries
     which are still mat-objects.
     '''
-    data = spio.loadmat(filename, struct_as_record=False, squeeze_me=True)
+    kwargs['struct_as_record'] = False
+    kwargs['squeeze_me'] = True
+    data = spio.loadmat(filename, **kwargs)
     return _check_keys(data)
 
 
