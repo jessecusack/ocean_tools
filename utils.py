@@ -7,9 +7,13 @@ Created on Wed Aug  6 12:09:43 2014
 Too many little modules were cluttering the directory so I have shoved them
 all into one miscellaneous 'utilities' module.
 
+To keep things simple this should only import modules from the python standard
+library or numpy and scipy.
+
 """
 
 import numpy as np
+import scipy.signal as spsig
 import scipy.io as spio
 from datetime import datetime, timedelta
 
@@ -26,7 +30,7 @@ def datenum_to_datetime(datenum):
     Parameters
     ----------
     datenum : array_like
-        MATLAB datenumber which is the number of days since 0001-01-01.
+        MATLAB datenumber which is the number of days since 0000-01-00.
 
     Returns
     -------
@@ -65,7 +69,7 @@ def datetime_to_datenum(dt):
     Returns
     -------
     datenum : ndarray
-        MATLAB datenumber which is the number of days since 0001-01-01.
+        MATLAB datenumber which is the number of days since 0000-01-00.
 
     """
 
@@ -105,6 +109,10 @@ def lldist(lon, lat):
     -------
     dist : 1-D numpy.ndarray of floats.
         Distance between lon and lat positions. [km]
+
+    Notes
+    -----
+    This functionality does exist in the Gibbs seawater toolbox as gsw.dist.
 
     """
 
@@ -496,3 +504,58 @@ def _todict(matobj):
         else:
             dict[strg] = elem
     return dict
+
+
+def periodogram2D(z, fs=(1., 1.), window=None, detrend=None):
+    """Calculate the two dimensional power spectral density.
+
+    Parameters
+    ----------
+    z : 2D numpy array
+        Data to compute spectral density from.
+    fs : 2 element sequence
+        The sampling frequency along the dimensions of z.
+    window : optional, None, string
+        Default is 'None'
+    detrend : optional, None, string
+        Default is 'constant' in which case the mean is subtracted from z. You
+        can also use 'None' in which case no detrending is performed.
+
+    Returns
+    -------
+    fi : numpy array
+        Sampling frequencies/wavenumbers along the first dimension. Cyclical
+        units, not angular.
+    fj : numpy array
+        Sampling frequencies/wavenumbers along the second dimension. Cyclical
+        units, not angular.
+    result : 2D numpy array
+        Power spectral density of z. If z has units of 'V', and is sampled in
+        units of 's', then the output has units V^2 / s^-2 (or V^2 / Hz^2).
+
+    """
+
+    fsi, fsj = fs
+    Ni, Nj = z.shape
+
+    if detrend == 'constant':
+        z = z - np.mean(z)
+
+    if window is None:
+        window = 'boxcar'
+
+    if isinstance(window, str) or type(window) is tuple:
+        wini = spsig.windows.get_window(window, Ni)
+        winj = spsig.windows.get_window(window, Nj)
+        win = np.outer(wini, winj)
+    else:
+        raise ValueError("Value for window kwarg not valid.")
+
+    FTz = np.fft.fftshift(np.fft.fft2(win*z))
+    fi = np.fft.fftshift(np.fft.fftfreq(Ni, d=1./fsi))
+    fj = np.fft.fftshift(np.fft.fftfreq(Nj, d=1./fsj))
+
+    # The power spectrum.
+    result = (FTz*FTz.conj()).real/(Ni*fsi*Nj*fsj)
+
+    return fi, fj, result
