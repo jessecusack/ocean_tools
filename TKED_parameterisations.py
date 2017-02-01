@@ -9,6 +9,7 @@ A place for turbulent kinetic energy dissipation parameterisation functions.
 
 import numpy as np
 import gsw
+import seawater as sw
 import scipy.signal as sig
 import matplotlib.pyplot as plt
 import window as wdw
@@ -75,6 +76,12 @@ def sin2taper(L):
 def adiabatic_level(P, SA, T, lat, P_bin_width=200., deg=1):
     """Generate smooth buoyancy frequency profile by applying the adiabatic
     levelling method of Bray and Fofonoff (1981).
+
+    THIS FUNCTION HAS BEEN SUPERSEEDED BY:
+        adiabatic_level_sw
+        adiabatic_level_gsw
+
+    Both of which are significantly faster by over a factor of 10.
 
     Parameters
     ----------
@@ -153,6 +160,244 @@ def adiabatic_level(P, SA, T, lat, P_bin_width=200., deg=1):
     N2_ref[~nans] = -1e-4*rho_bar**2*g**2*p[:, 0]
 
     return N2_ref
+
+
+def adiabatic_level_gsw(P, S, T, lon, lat, bin_width=100., order=1,
+                        ret_coefs=False, cap=None):
+    """Generate smooth buoyancy frequency profile by applying the adiabatic
+    levelling method of Bray and Fofonoff (1981). This function uses the newest
+    theormodynamic toolbox, 'gsw'.
+
+    Parameters
+    ----------
+    P : 1-D ndarray
+        Pressure [dbar]
+    S : 1-D ndarray
+        Practical salinity [-]
+    T : 1-D ndarray
+        Temperature [degrees C]
+    lon : float
+        Longitude [-180...+360]
+    lat : float
+        Latitude [-90...+90]
+    bin_width : float, optional
+        Pressure bin width [dbar]
+    deg : int, optional
+        Degree of polynomial fit. (DEGREES HIGHER THAN 1 NOT PROPERLY TESTED)
+    ret_coefs : bool, optional
+        Flag to return additional argument pcoefs. False by default.
+    cap : optional
+        Flag to change proceedure at ends of array where bins may be partially
+        filled. None by default, meaning they are included. Can also specify
+        'left', 'right' or 'both' to cap method before partial bins.
+
+    Returns
+    -------
+    N2_ref : 1-D ndarray
+        Reference buoyancy frequency [s-2]
+    pcoefs : 2-D ndarray
+        Fitting coefficients, returned only when the flag ret_coefs is set
+        True.
+
+    """
+    valid = np.isfinite(P) & np.isfinite(S) & np.isfinite(T)
+    valid = np.squeeze(np.argwhere(valid))
+    P_, S_, T_ = P[valid], S[valid], T[valid]
+
+    flip = False
+    if (np.diff(P_) < 0).all():
+        flip = True
+        P_ = np.flipud(P_)
+        S_ = np.flipud(S_)
+        T_ = np.flipud(T_)
+    elif (np.diff(P_) < 0).any():
+        raise ValueError('P must be monotonically increasing/decreasing.')
+
+    i1 = np.searchsorted(P_, P_ - bin_width/2.)
+    i2 = np.searchsorted(P_, P_ + bin_width/2.)
+
+    if cap is None:
+        Nd = P_.size
+    elif cap == 'both':
+        icapl = i2[0]
+        icapr = i1[-1]
+    elif cap == 'left':
+        icapl = i2[0]
+        icapr = i2[-1]
+    elif cap == 'right':
+        icapl = i1[0]
+        icapr = i1[-1]
+    else:
+        raise ValueError("The argument cap must be either None, 'both', 'left'"
+                         " or 'right'")
+
+    if cap is not None:
+        i1 = i1[icapl:icapr]
+        i2 = i2[icapl:icapr]
+        valid = valid[icapl:icapr]
+        Nd = icapr - icapl
+
+    dimax = np.max(i2 - i1)
+
+    Pb = np.full((dimax, Nd), np.nan)
+    Sb = np.full((dimax, Nd), np.nan)
+    Tb = np.full((dimax, Nd), np.nan)
+
+    for i in range(Nd):
+        imax = i2[i]-i1[i]
+        Pb[:imax, i] = P_[i1[i]:i2[i]]
+        Sb[:imax, i] = S_[i1[i]:i2[i]]
+        Tb[:imax, i] = T_[i1[i]:i2[i]]
+
+    Pbar = np.nanmean(Pb, axis=0)
+
+    SAb = gsw.SA_from_SP(Sb, Pb, lon, lat)
+
+    rho = gsw.pot_rho_t_exact(SAb, Tb, Pb, Pbar)
+    sv = 1./rho
+
+    rhobar = np.nanmean(rho, axis=0)
+
+    p = np.full((order+1, Nd), np.nan)
+
+    for i in range(Nd):
+        imax = i2[i]-i1[i]
+        p[:, i] = np.polyfit(Pb[:imax, i], sv[:imax, i], order)
+
+    g = gsw.grav(lat, Pbar)
+    # The factor 1e-4 is needed for conversion from dbar to Pa.
+    N2 = -1e-4*rhobar**2*g**2*p[order-1, :]
+
+    N2_ref = np.full_like(P, np.nan)
+    pcoef = np.full((order+1, P.size), np.nan)
+    if flip:
+        N2_ref[valid] = np.flipud(N2)
+        pcoef[:, valid] = np.fliplr(p)
+    else:
+        N2_ref[valid] = N2
+        pcoef[:, valid] = p
+
+    if ret_coefs:
+        return N2_ref, pcoef
+    else:
+        return N2_ref
+
+
+def adiabatic_level_sw(P, S, T, lat, bin_width=100., order=1,
+                       ret_coefs=False, cap=None):
+    """Generate smooth buoyancy frequency profile by applying the adiabatic
+    levelling method of Bray and Fofonoff (1981). This function uses the older
+    theormodynamic toolbox, 'seawater'.
+
+    Parameters
+    ----------
+    P : 1-D ndarray
+        Pressure [dbar]
+    S : 1-D ndarray
+        Practical salinity [-]
+    T : 1-D ndarray
+        Temperature [degrees C]
+    lat : float
+        Latitude [-90...+90]
+    bin_width : float, optional
+        Pressure bin width [dbar]
+    deg : int, optional
+        Degree of polynomial fit. (DEGREES HIGHER THAN 1 NOT PROPERLY TESTED)
+    ret_coefs : bool, optional
+        Flag to return additional argument pcoefs. False by default.
+    cap : optional
+        Flag to change proceedure at ends of array where bins may be partially
+        filled. None by default, meaning they are included. Can also specify
+        'left', 'right' or 'both' to cap method before partial bins.
+
+    Returns
+    -------
+    N2_ref : 1-D ndarray
+        Reference buoyancy frequency [s-2]
+    pcoefs : 2-D ndarray
+        Fitting coefficients, returned only when the flag ret_coefs is set
+        True.
+
+    """
+    valid = np.isfinite(P) & np.isfinite(S) & np.isfinite(T)
+    valid = np.squeeze(np.argwhere(valid))
+    P_, S_, T_ = P[valid], S[valid], T[valid]
+
+    flip = False
+    if (np.diff(P_) < 0).all():
+        flip = True
+        P_ = np.flipud(P_)
+        S_ = np.flipud(S_)
+        T_ = np.flipud(T_)
+    elif (np.diff(P_) < 0).any():
+        raise ValueError('P must be monotonically increasing/decreasing.')
+
+    i1 = np.searchsorted(P_, P_ - bin_width/2.)
+    i2 = np.searchsorted(P_, P_ + bin_width/2.)
+
+    if cap is None:
+        Nd = P_.size
+    elif cap == 'both':
+        icapl = i2[0]
+        icapr = i1[-1]
+    elif cap == 'left':
+        icapl = i2[0]
+        icapr = i2[-1]
+    elif cap == 'right':
+        icapl = i1[0]
+        icapr = i1[-1]
+    else:
+        raise ValueError("The argument cap must be either None, 'both', 'left'"
+                         " or 'right'")
+
+    if cap is not None:
+        i1 = i1[icapl:icapr]
+        i2 = i2[icapl:icapr]
+        valid = valid[icapl:icapr]
+        Nd = icapr - icapl
+
+    dimax = np.max(i2 - i1)
+
+    Pb = np.full((dimax, Nd), np.nan)
+    Sb = np.full((dimax, Nd), np.nan)
+    Tb = np.full((dimax, Nd), np.nan)
+
+    for i in range(Nd):
+        imax = i2[i]-i1[i]
+        Pb[:imax, i] = P_[i1[i]:i2[i]]
+        Sb[:imax, i] = S_[i1[i]:i2[i]]
+        Tb[:imax, i] = T_[i1[i]:i2[i]]
+
+    Pbar = np.nanmean(Pb, axis=0)
+
+    rho = sw.pden(Sb, Tb, Pb, Pbar)
+    sv = 1./rho
+
+    rhobar = np.nanmean(rho, axis=0)
+
+    p = np.full((order+1, Nd), np.nan)
+
+    for i in range(Nd):
+        imax = i2[i]-i1[i]
+        p[:, i] = np.polyfit(Pb[:imax, i], sv[:imax, i], order)
+
+    g = sw.g(lat, -sw.dpth(Pbar, lat))
+    # The factor 1e-4 is needed for conversion from dbar to Pa.
+    N2 = -1e-4*rhobar**2*g**2*p[order-1, :]
+
+    N2_ref = np.full_like(P, np.nan)
+    pcoef = np.full((order+1, P.size), np.nan)
+    if flip:
+        N2_ref[valid] = np.flipud(N2)
+        pcoef[:, valid] = np.fliplr(p)
+    else:
+        N2_ref[valid] = N2
+        pcoef[:, valid] = p
+
+    if ret_coefs:
+        return N2_ref, pcoef
+    else:
+        return N2_ref
 
 
 def h_gregg(R=3.):

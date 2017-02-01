@@ -516,10 +516,12 @@ def periodogram2D(z, fs=(1., 1.), window=None, detrend=None):
     fs : 2 element sequence
         The sampling frequency along the dimensions of z.
     window : optional, None, string
-        Default is 'None'
+        Default is 'None'. Power spectral density should be modified by scaling
+        factor if a window is chosen, this is not yet implemented.
     detrend : optional, None, string
         Default is 'constant' in which case the mean is subtracted from z. You
-        can also use 'None' in which case no detrending is performed.
+        can also use 'None' in which case no detrending is performed. Other
+        types of detrending are not yet supported.
 
     Returns
     -------
