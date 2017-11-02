@@ -561,3 +561,83 @@ def periodogram2D(z, fs=(1., 1.), window=None, detrend=None):
     result = (FTz*FTz.conj()).real/(Ni*fsi*Nj*fsj)
 
     return fi, fj, result
+
+
+def poly_area(x, y):
+    """Calculate the area of a simple polygon, i.e. one that does not contain
+    holes or intersections. This function uses the Shoelace formula.
+
+    Parameters
+    ----------
+    x : array_like
+        x coordinates.
+    y : array_like
+        y coordinates.
+
+    Returns
+    -------
+    A : float
+        Polygon area.
+
+    """
+    return 0.5*np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
+
+
+def mooring_div_vort(x, y, u, v):
+    """Calculate spatial derivatives of velocity from mooring data using the
+    Divergence theorem and Stokes theorem. The mooring positions should be
+    given in metres from a common origin. At least three moorings are needed.
+    The moorings should form a simple polygon, that is, one without holes or
+    intersections.
+
+    Parameters
+    ----------
+    x : array_like
+        x coordinates of moorings [m].
+    y : array_like
+        y coordinates of moorings [m].
+    u : array_like
+        Zonal velocity [m s-1].
+    v : array_like
+        Meridional velocity [m s-1].
+
+    Returns
+    -------
+    dudx : float
+        Zonal gradient of zonal velocity [s-1].
+    dudy : float
+        Meridional gradient of zonal velocity [s-1].
+    dvdx : float
+        Zonal gradient of meridional velocity [s-1].
+    dvdy : float
+        Meridional gradient of meridional velocity [s-1].
+    vort : float
+        Vorticity [s-1].
+    div : float
+        Divergence [s-1].
+
+
+    """
+    # Combine into 2D arrays for compactness.
+    xy = np.stack((x, y)).T
+    uv = np.stack((u, v)).T
+
+    # Define the perpendicular (dn) and parallel (ds) vectors from the polygon
+    # faces.
+    ds = xy - np.roll(xy, -1, axis=0)
+    dn = np.stack((ds[:, 1], -ds[:, 0])).T
+    area = poly_area(x, y)  # Area of polygon.
+
+    # Calculate velocity at polygon faces centres as average of moorings.
+    uvc = 0.5*(np.roll(uv, -1, axis=0) + uv)
+
+    div = np.sum(uvc*dn)/area  # Divergence theorem.
+    vort = np.sum(uvc*ds)/area  # Stokes theorem.
+
+    # Individual components.
+    dudx = np.sum(uvc[:, 0]*dn[:, 0])/area
+    dudy = -np.sum(uvc[:, 1]*ds[:, 1])/area
+    dvdx = np.sum(uvc[:, 1]*dn[:, 1])/area
+    dvdy = np.sum(uvc[:, 0]*ds[:, 0])/area
+
+    return dudx, dudy, dvdx, dvdy, vort, div
