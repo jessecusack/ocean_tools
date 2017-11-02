@@ -884,7 +884,7 @@ def thorpe_scales(z, x, acc=1e-3, R0=0.25, full_output=False):
 
 
 def w_scales(w, x, N2, dx=1., width=10., overlap=-1., lc=30., c=1., eff=0.2,
-             btype='highpass', we=1e-3, ret_noise=False):
+             btype='highpass', we=1e-3, ret_noise=False, ret_w_filt=False):
     """
     Estimate turbulent kinetic energy dissipation from vertical velocity
     variance, known as the 'large eddy method'.
@@ -916,6 +916,8 @@ def w_scales(w, x, N2, dx=1., width=10., overlap=-1., lc=30., c=1., eff=0.2,
         Random error in the vertical velocity [m s-1]
     ret_noise : boolean, optional
         Set as True to return additional noise information.
+    ret_w_filt : boolean, optional
+        Set as True to return just w_filt.
 
     Returns
     -------
@@ -943,6 +945,9 @@ def w_scales(w, x, N2, dx=1., width=10., overlap=-1., lc=30., c=1., eff=0.2,
 
     # Filter the data.
     w_filt = sig.filtfilt(b, a, w)
+
+    if ret_w_filt:
+        return w_filt
 
     w_wdws = wdw.window(x, w_filt, width=width, overlap=overlap)
     N2_wdws = wdw.window(x, N2, width=width, overlap=overlap)
