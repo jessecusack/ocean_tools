@@ -563,81 +563,29 @@ def periodogram2D(z, fs=(1., 1.), window=None, detrend=None):
     return fi, fj, result
 
 
-def poly_area(x, y):
-    """Calculate the area of a simple polygon, i.e. one that does not contain
-    holes or intersections. This function uses the Shoelace formula.
+# Stole this off stack exchange...
+# https://stackoverflow.com/a/4495197
+def contiguous_regions(condition):
+    """Finds contiguous True regions of the boolean array "condition". Returns
+    a 2D array where the first column is the start index of the region and the
+    second column is the end index."""
 
-    Parameters
-    ----------
-    x : array_like
-        x coordinates.
-    y : array_like
-        y coordinates.
+    # Find the indicies of changes in "condition"
+    d = np.diff(condition)
+    idx, = d.nonzero()
 
-    Returns
-    -------
-    A : float
-        Polygon area.
+    # We need to start things after the change in "condition". Therefore,
+    # we'll shift the index by 1 to the right.
+    idx += 1
 
-    """
-    return 0.5*np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
+    if condition[0]:
+        # If the start of condition is True prepend a 0
+        idx = np.r_[0, idx]
 
+    if condition[-1]:
+        # If the end of condition is True, append the length of the array
+        idx = np.r_[idx, condition.size] # Edit
 
-def mooring_div_vort(x, y, u, v):
-    """Calculate spatial derivatives of velocity from mooring data using the
-    Divergence theorem and Stokes theorem. The mooring positions should be
-    given in metres from a common origin. At least three moorings are needed.
-    The moorings should form a simple polygon, that is, one without holes or
-    intersections.
-
-    Parameters
-    ----------
-    x : array_like
-        x coordinates of moorings [m].
-    y : array_like
-        y coordinates of moorings [m].
-    u : array_like
-        Zonal velocity [m s-1].
-    v : array_like
-        Meridional velocity [m s-1].
-
-    Returns
-    -------
-    dudx : float
-        Zonal gradient of zonal velocity [s-1].
-    dudy : float
-        Meridional gradient of zonal velocity [s-1].
-    dvdx : float
-        Zonal gradient of meridional velocity [s-1].
-    dvdy : float
-        Meridional gradient of meridional velocity [s-1].
-    vort : float
-        Vorticity [s-1].
-    div : float
-        Divergence [s-1].
-
-
-    """
-    # Combine into 2D arrays for compactness.
-    xy = np.stack((x, y)).T
-    uv = np.stack((u, v)).T
-
-    # Define the perpendicular (dn) and parallel (ds) vectors from the polygon
-    # faces.
-    ds = xy - np.roll(xy, -1, axis=0)
-    dn = np.stack((ds[:, 1], -ds[:, 0])).T
-    area = poly_area(x, y)  # Area of polygon.
-
-    # Calculate velocity at polygon faces centres as average of moorings.
-    uvc = 0.5*(np.roll(uv, -1, axis=0) + uv)
-
-    div = np.sum(uvc*dn)/area  # Divergence theorem.
-    vort = np.sum(uvc*ds)/area  # Stokes theorem.
-
-    # Individual components.
-    dudx = np.sum(uvc[:, 0]*dn[:, 0])/area
-    dudy = -np.sum(uvc[:, 1]*ds[:, 1])/area
-    dvdx = np.sum(uvc[:, 1]*dn[:, 1])/area
-    dvdy = np.sum(uvc[:, 0]*ds[:, 0])/area
-
-    return dudx, dudy, dvdx, dvdy, vort, div
+    # Reshape the result into two columns
+    idx.shape = (-1,2)
+    return idx
