@@ -390,24 +390,28 @@ def interp_nonmon(x, xp, fp, left=None, right=None):
         return np.interp(x, xp, fp, left, right)
 
 
-def spherical_polar_gradient(r, dlon, dlat, lat, f):
+def spherical_polar_gradient(f, lon, lat, r=6371000.):
     """Extension of the np.gradient function to spherical polar coordinates.
     Only gradients on a surface of constant radius (i.e. 2 dimensional) are
     currently supported. The grid must be evenly spaced in latitude and
-    longitude. Assumes latitudes are rows and longitudes are columns of input.
+    longitude.
+
+    Important
+    ---------
+    For f(i, j), this function assumes i denotes position in latitude and j the
+    position in longitude.
 
     Parameters
     ----------
-    r : float
-        Radius of sphere.
-    dlon : 1d array
-        Longitude spacing. [Degrees]
-    dlat : 1d array
-        Latitude spacing. [Degrees]
-    lat : 1d array
-        Longitude points. [Degrees]
     f : 2d array
         Scalar to calculate gradient.
+    lon : 1d array
+        Longitude points. [Degrees]
+    lat : 1d array
+        Latitude points. [Degrees]
+    r : float
+        Radius of sphere, defaults to Earth radius, 6371000 m.
+
 
     Returns
     -------
@@ -417,15 +421,54 @@ def spherical_polar_gradient(r, dlon, dlat, lat, f):
         Derivative in the latitudinal direction.
 
     """
+    nr, nc = f.shape
+    if (nr != len(lat)) or (nc != len(lon)):
+        raise ValueError('Latitude and longitude are expected to be rows and'
+                         'columns respectively')
 
-    dlon, dlat = np.deg2rad(dlon), np.deg2rad(dlat)
+    lon, lat = np.meshgrid(np.deg2rad(lon), np.deg2rad(lat))
 
-    dflon, dflat = np.gradient(f.T, dlon, dlat)
+    dfi = np.gradient(f, axis=0)
+    dfj = np.gradient(f, axis=1)
+    dlon = np.gradient(lon, axis=1)
+    dlat = np.gradient(lat, axis=0)
+
     # Cosine because latitude from -90 to 90. Not 0 to pi.
-    dflon = dflon/(r*np.cos(np.deg2rad(lat)))
-    dflat = dflat/r
+    dfdlon = dfj/(r*dlon*np.cos(lat))
+    dfdlat = dfi/(r*dlat)
 
-    return dflon.T, dflat.T
+    return dfdlon, dfdlat
+
+
+def spherical_polar_gradient_ts(f, lon, lat, r=6371000.):
+    """Gradient of a two dimensional time series.
+
+    Important
+    ---------
+    For f(i, j, k), this function assumes i denotes time, j latitude and k
+    longitude.
+
+    See spherical_polar_gradient for details.
+
+    """
+    nt, nr, nc = f.shape
+    if (nr != len(lat)) or (nc != len(lon)):
+        raise ValueError
+
+    lon, lat = np.meshgrid(np.deg2rad(lon), np.deg2rad(lat))
+
+    dfi = np.gradient(f, axis=1)
+    dfj = np.gradient(f, axis=2)
+    dlon = np.gradient(lon, axis=1)
+    dlat = np.gradient(lat, axis=0)
+
+    dlon = np.tile((r*dlon*np.cos(lat))[np.newaxis, ...], (nt, 1, 1))
+    dlat = np.tile((r*dlat)[np.newaxis, ...], (nt, 1, 1))
+
+    dfdlon = dfj/dlon
+    dfdlat = dfi/dlat
+
+    return dfdlon, dfdlat
 
 
 def spherical_polar_area(r, lon, lat):
