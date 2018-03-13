@@ -18,5 +18,5 @@ setup(name='ocean_tools',
       install_requires=[
           'numpy', 'scipy', 'gsw', 'seawater',
       ],
-      python_requires='>=3',
+      python_requires='>=2.7',
       zip_safe=False)
