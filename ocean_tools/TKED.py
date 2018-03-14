@@ -128,7 +128,7 @@ def adiabatic_level(P, SA, T, lat, P_bin_width=200., deg=1):
     Tm = np.NaN*np.empty(shape)
 
     # Populate bins.
-    for i in xrange(len(P)):
+    for i in range(len(P)):
 
         P_bin_min = np.maximum(P[i] - P_bin_width/2., P_min)
         P_bin_max = np.minimum(P[i] + P_bin_width/2., P_max)
@@ -757,7 +757,7 @@ def intermediate_profile(x, xhinge, delta):
     xtd[0] = xhinge + ntd*delta
     xbu[0] = xhinge + nbu*delta
 
-    for i in xrange(len(x) - 1):
+    for i in range(len(x) - 1):
         ntd = np.fix(x[i+1]/delta - xtd[i]/delta)
         nbu = np.fix(xf[i+1]/delta - xbu[i]/delta)
 
@@ -819,7 +819,7 @@ def thorpe_scales(z, x, acc=1e-3, R0=0.25, full_output=False):
     Nsq = np.zeros_like(x)
 
     # Calculate the RMS thorpe displacement over each overturn.
-    for i in xrange(len(jdxs)-1):
+    for i in range(len(jdxs)-1):
         if jdxs[i+1] - jdxs[i] > 1:
             # Check for noise.
             q = x_sorted[jdxs[i+1]] - x_sorted[jdxs[i]]

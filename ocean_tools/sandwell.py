@@ -113,7 +113,7 @@ def read_grid(lon_lat, file_path=None):
         file_path = '../../data/sandwell_bathymetry/topo_17.1.img'
 
     with open(file_path, 'rb') as f:
-        for i in xrange(Nlats):
+        for i in range(Nlats):
             if cross_0:
                 f.seek(bytes_per_val*((lati1 + i)*nlon + loni1))
                 N = nlon - loni1

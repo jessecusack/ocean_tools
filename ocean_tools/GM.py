@@ -558,7 +558,7 @@ if __name__ == '__main__':
     # No rolloff case:
     G = GM(N, f, **GM76)
     ax.loglog(m, G.Sm(m, 'vert_shear'), color='k')
-    for i in xrange(len(Ef)):
+    for i in range(len(Ef)):
         G = GM(N, f, Ef=Ef[i], **GM76)
         Sshear = G.Sm(m, 'vert_shear', rolloff=True)
         ax.loglog(m, Sshear, color=clrs[i])
