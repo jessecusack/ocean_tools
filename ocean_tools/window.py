@@ -8,7 +8,7 @@ Functions for chopping up arrays using moving windows and smoothing data.
 """
 
 import numpy as np
-import utils
+from . import utils
 
 
 def chunk(x, x_range, y):

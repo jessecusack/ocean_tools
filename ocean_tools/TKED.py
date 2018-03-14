@@ -12,8 +12,8 @@ import gsw
 import seawater as sw
 import scipy.signal as sig
 import matplotlib.pyplot as plt
-import window as wdw
-import GM
+from . import window
+from . import GM
 
 
 # Define some standard parameters.
