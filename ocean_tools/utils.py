@@ -202,6 +202,35 @@ def flip_padded(data, cols=None):
     return out_data
 
 
+def nansort(a, axis=-1, kind='quicksort'):
+    """Sort but leave NaN values untouched in place."""
+    if axis not in [-1, 0, 1]:
+        raise ValueError('The axis may be only -1, 0 or 1.')
+
+    ndim = np.ndim(a)
+
+    if ndim > 2:
+        raise ValueError('Only 1 or 2 dimensional arrays are supported.')
+
+    nans = np.isnan(a)
+    a_sorted = np.full_like(a, np.nan)
+    if ndim == 1:
+        a_valid = a[~nans]
+        a_sorted[~nans] = np.sort(a_valid, kind=kind)
+    if ndim == 2:
+        nr, nc = a.shape
+        if axis == 0:
+            for i in range(nc):
+                a_valid = a[~nans[:, i], i]
+                a_sorted[~nans[:, i], i] = np.sort(a_valid, kind=kind)
+        if axis == -1 or axis == 1:
+            for i in range(nr):
+                a_valid = a[i, ~nans[i, :]]
+                a_sorted[i, ~nans[i, :]] = np.sort(a_valid, kind=kind)
+
+    return a_sorted
+
+
 def finite_diff(x, y, ivar=None, order=1, acc=1):
     """Differentiate a curve and then interpolate back onto x positions.
     NOTE: Why use this when there is a np.gradient function? Because this deals
