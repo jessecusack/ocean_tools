@@ -13,8 +13,8 @@ library or numpy and scipy.
 """
 
 import numpy as np
-import scipy.signal as spsig
-import scipy.io as spio
+import scipy.signal as sig
+import scipy.io as io
 from datetime import datetime, timedelta
 
 
@@ -542,14 +542,14 @@ def loadmat(filename, **kwargs):
     Big thanks to mergen on stackexchange for this:
         http://stackoverflow.com/a/8832212
 
-    This function should be called instead of direct spio.loadmat
+    This function should be called instead of direct scipy.io.loadmat
     as it cures the problem of not properly recovering python dictionaries
     from mat files. It calls the function check keys to cure all entries
     which are still mat-objects.
     '''
     kwargs['struct_as_record'] = False
     kwargs['squeeze_me'] = True
-    data = spio.loadmat(filename, **kwargs)
+    data = io.loadmat(filename, **kwargs)
     return _check_keys(data)
 
 
@@ -559,7 +559,7 @@ def _check_keys(dict):
     todict is called to change them to nested dictionaries.
     '''
     for key in dict:
-        if isinstance(dict[key], spio.matlab.mio5_params.mat_struct):
+        if isinstance(dict[key], io.matlab.mio5_params.mat_struct):
             dict[key] = _todict(dict[key])
     return dict
 
@@ -571,7 +571,7 @@ def _todict(matobj):
     dict = {}
     for strg in matobj._fieldnames:
         elem = matobj.__dict__[strg]
-        if isinstance(elem, spio.matlab.mio5_params.mat_struct):
+        if isinstance(elem, io.matlab.mio5_params.mat_struct):
             dict[strg] = _todict(elem)
         else:
             dict[strg] = elem
@@ -619,8 +619,8 @@ def periodogram2D(z, fs=(1., 1.), window=None, detrend=None):
         window = 'boxcar'
 
     if isinstance(window, str) or type(window) is tuple:
-        wini = spsig.windows.get_window(window, Ni)
-        winj = spsig.windows.get_window(window, Nj)
+        wini = sig.windows.get_window(window, Ni)
+        winj = sig.windows.get_window(window, Nj)
         win = np.outer(wini, winj)
     else:
         raise ValueError("Value for window kwarg not valid.")
@@ -635,13 +635,12 @@ def periodogram2D(z, fs=(1., 1.), window=None, detrend=None):
     return fi, fj, result
 
 
-# Stole this off stack exchange...
-# https://stackoverflow.com/a/4495197
 def contiguous_regions(condition):
     """Finds contiguous True regions of the boolean array "condition". Returns
     a 2D array where the first column is the start index of the region and the
     second column is the end index."""
-
+    # Stole this off stack exchange...
+    # https://stackoverflow.com/a/4495197
     # Find the indicies of changes in "condition"
     d = np.diff(condition)
     idx, = d.nonzero()
@@ -656,8 +655,68 @@ def contiguous_regions(condition):
 
     if condition[-1]:
         # If the end of condition is True, append the length of the array
-        idx = np.r_[idx, condition.size] # Edit
+        idx = np.r_[idx, condition.size]  # Edit
 
     # Reshape the result into two columns
-    idx.shape = (-1,2)
+    idx.shape = (-1, 2)
     return idx
+
+
+def butter(cutoff, fs, btype='low', order=4):
+    """Return Butterworth filter coefficients. See scipy.signal.butter for a
+    more thorough documentation.
+
+    Parameters
+    ----------
+    cutoff : array
+        Cutoff frequency, e.g. roughly speaking, the frequency at which the
+        filter acts. Units should be same as for fs paramter.
+    fs : float
+        Sampling frequency of signal. Units should be same as for cutoff
+        parameter.
+    btype : {‘lowpass’, ‘highpass’, ‘bandpass’, ‘bandstop’}, optional
+        Default is 'low'.
+    order : optional, int
+        Default is 4. The order of the Butterworth filter.
+
+    Returns
+    -------
+    b : numpy array
+        Filter b coefficients.
+    a : numpy array
+        Filter a coefficients.
+
+    """
+    nyq = 0.5 * fs
+    normal_cutoff = cutoff / nyq
+    b, a = sig.butter(order, normal_cutoff, btype=btype, analog=False)
+    return b, a
+
+
+def butter_filter(x, cutoff, fs, btype='low', order=4):
+    """Apply Butterworth filter to data using scipy.signal.filtfilt.
+
+    Parameters
+    ----------
+    x : array
+        The data to be filtered. Should be evenly sampled.
+    cutoff : array
+        Cutoff frequency, e.g. roughly speaking, the frequency at which the
+        filter acts. Units should be same as for fs paramter.
+    fs : float
+        Sampling frequency of signal. Units should be same as for cutoff
+        parameter.
+    btype : optional, string
+        Default is 'low'. Filter type can be 'low', 'high' or 'band'.
+    order : optional, int
+        Default is 4. The order of the Butterworth filter.
+
+    Returns
+    -------
+    y : numpy array
+        The filtered data.
+
+    """
+    b, a = butter(cutoff, fs, btype=btype, order=order)
+    y = sig.filtfilt(b, a, x)
+    return y
