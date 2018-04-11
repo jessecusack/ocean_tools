@@ -294,19 +294,78 @@ def finite_diff(x, y, ivar=None, order=1, acc=1):
     return dydx_out
 
 
-def nan_interp(x, xp, fp, left=None, right=None):
+def nan_interp(x, xp, fp, left=None, right=None, axis=0, squeeze_me=True):
     """See numpy.interp documentation. This does the same thing but ignores NaN
-    values.
+    values in the data. It can accept 2D arrays.
 
+    Parameters
+    ----------
+    x : float or 1D array
+        The x-coordinates of the interpolated values. No NaNs please!
+    xp : 1D or 2D array of floats
+        The x-coordinates of the data points, must be increasing along the
+        dimension along which the interpolation is being performed.
+    fp : 1D or 2D array of floats or complex
+        The y-coordinates of the data points, same shape as `xp`.
+    left : optional float or complex corresponding to fp
+        Value to return for `x < xp[0]`, default is `fp[0]`.
+    right : optional float or complex corresponding to fp
+        Value to return for `x > xp[-1]`, default is `fp[-1]`.
+    axis : [-1, 0, 1] int
+        Default is 0. The axis along which to perform the interpolation.
+    squeeze_me : boolean
+        Default is True. Squeeze output to remove singleton dimensions.
+    Returns
+    -------
+    y : ndarray
+        The interpolated values.
     """
-    y = np.nan*np.zeros_like(x)
 
-    x_nans = np.isnan(x)
-    xp_nans = np.isnan(xp) | np.isnan(fp)
+    if axis not in [-1, 0, 1]:
+        raise ValueError('The axis may be only -1, 0 or 1.')
 
-    y[~x_nans] = np.interp(x[~x_nans], xp[~xp_nans], fp[~xp_nans], left, right)
+    if xp.shape != fp.shape:
+        raise ValueError('xp and fp have different shapes.')
 
-    return y
+    ndim = np.ndim(xp)
+    if ndim > 2:
+        raise ValueError('Only 1 or 2 dimensional arrays are supported.')
+
+    nans = np.isnan(xp) | np.isnan(fp)
+
+    if ndim == 1:
+        y = np.full_like(x, np.nan)
+        y = np.interp(x, xp[~nans], fp[~nans], left, right)
+    if ndim == 2:
+        nr, nc = xp.shape
+
+        if axis == 0:
+            if np.iterable(x):
+                y = np.full((len(x), nc), np.nan)
+            else:
+                y = np.full((1, nc), np.nan)
+
+            for i in range(nc):
+                xp_ = xp[~nans[:, i], i]
+                fp_ = fp[~nans[:, i], i]
+                y[:, i] = np.interp(x, xp_, fp_, left, right)
+
+        if axis == -1 or axis == 1:
+            if axis == 0:
+                if np.iterable(x):
+                    y = np.full((nr, len(x)), np.nan)
+                else:
+                    y = np.full((nr, 1), np.nan)
+
+            for i in range(nr):
+                xp_ = xp[i, ~nans[i, :]]
+                fp_ = fp[i, ~nans[i, :]]
+                y[i, :] = np.interp(x, xp_, fp_, left, right)
+
+    if squeeze_me:
+        return np.squeeze(y)
+    else:
+        return y
 
 
 def nan_polyfit(x, y, deg, rcond=None, full=False, w=None, cov=False):
