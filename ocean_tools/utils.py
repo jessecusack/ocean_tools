@@ -596,7 +596,7 @@ def spherical_polar_area(r, lon, lat):
     return solid_angle.T*r**2
 
 
-def loadmat(filename, **kwargs):
+def loadmat(filename, check_arrays=False, **kwargs):
     '''
     Big thanks to mergen on stackexchange for this:
         http://stackoverflow.com/a/8832212
@@ -609,10 +609,10 @@ def loadmat(filename, **kwargs):
     kwargs['struct_as_record'] = False
     kwargs['squeeze_me'] = True
     data = io.loadmat(filename, **kwargs)
-    return _check_keys(data)
+    return _check_keys(data, check_arrays)
 
 
-def _check_keys(dict):
+def _check_keys(dict, check_arrays):
     '''
     Checks if entries in dictionary are mat-objects. If yes
     todict is called to change them to nested dictionaries.
@@ -620,6 +620,13 @@ def _check_keys(dict):
     for key in dict:
         if isinstance(dict[key], io.matlab.mio5_params.mat_struct):
             dict[key] = _todict(dict[key])
+        if isinstance(dict[key], np.ndarray) and check_arrays:
+            shape = dict[key].shape
+            array = dict[key].flatten()
+            for i, item in enumerate(array):
+                if isinstance(item, io.matlab.mio5_params.mat_struct):
+                    array[i] = _todict(item)
+            dict[key] = array.reshape(shape)
     return dict
 
 
