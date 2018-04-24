@@ -786,3 +786,35 @@ def butter_filter(x, cutoff, fs, btype='low', order=4):
     b, a = butter(cutoff, fs, btype=btype, order=order)
     y = sig.filtfilt(b, a, x)
     return y
+
+
+def bin_data(x, bins, x_monotonic=True):
+    """Bin data into given bins, which can be irregular sizes and even
+    separated from one another.
+
+    Parameters
+    ----------
+    x : array
+        Index of the data to bin in the same units as the bins e.g. time stamp
+        of sampling.
+    bins : 2d array (N, 2)
+        A size (N, 2) array of bins where the column 0 specifies the left bin
+        edges and column 1 the right edges.
+    x_monotonic : boolean
+        Default is True. If false, boolean indexing is used to bin data (slow).
+
+    Returns
+    -------
+    idxs : numpy array
+        List of indexes corresponding to each bin.
+
+    """
+    idxs = []
+    if x_monotonic:
+        for bin in bins:
+            idxs.append(np.arange(*np.searchsorted(x, bin)))
+    else:
+        for bin in bins:
+            inbin = (x > bin[0]) & (x < bin[1])
+            idxs.append(np.argwhere(inbin))
+    return idxs
