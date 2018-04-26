@@ -759,7 +759,7 @@ def butter(cutoff, fs, btype='low', order=4):
     return b, a
 
 
-def butter_filter(x, cutoff, fs, btype='low', order=4):
+def butter_filter(x, cutoff, fs, btype='low', order=4, **kwargs):
     """Apply Butterworth filter to data using scipy.signal.filtfilt.
 
     Parameters
@@ -784,7 +784,7 @@ def butter_filter(x, cutoff, fs, btype='low', order=4):
 
     """
     b, a = butter(cutoff, fs, btype=btype, order=order)
-    y = sig.filtfilt(b, a, x)
+    y = sig.filtfilt(b, a, x, **kwargs)
     return y
 
 
