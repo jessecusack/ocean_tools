@@ -78,6 +78,12 @@ def ETA_0(phi_0, m, om, N):
     return phi_0*1j*m/(N**2 - om**2)
 
 
+def RHO_0(phi_0, m, om, N, g=-9.81, rho_0=1000.):
+    """Density perturbation amplitude. Wavenumber and frequency should be in
+    angular units."""
+    return -B_0(phi_0, m, om, N)*rho_0/g
+
+
 def wave_phase(x, y, z, t, k, l, m, om, U=0., V=0., W=0., phase_0=0.):
     """Phase of complex exponential equal to:
          k * x - (om + k * U) t + phase_0
@@ -118,6 +124,14 @@ def w(x, y, z, t, phi_0, k, l, m, om, N, U=0., V=0., W=0., phase_0=0.):
 def b(x, y, z, t, phi_0, k, l, m, om, N, U=0., V=0., W=0., phase_0=0.):
     """Buoyancy pertubation."""
     amplitude = B_0(phi_0, m, om, N)
+    phase = wave_phase(x, y, z, t, k, l, m, om, U=U, V=V, W=W, phase_0=phase_0)
+    return np.real(amplitude*np.exp(phase))
+
+
+def rho(x, y, z, t, phi_0, k, l, m, om, N, U=0., V=0., W=0., phase_0=0.,
+        g=-9.81, rho_0=1000.):
+    """Density pertubation."""
+    amplitude = RHO_0(phi_0, m, om, N, g, rho_0)
     phase = wave_phase(x, y, z, t, k, l, m, om, U=U, V=V, W=W, phase_0=phase_0)
     return np.real(amplitude*np.exp(phase))
 
