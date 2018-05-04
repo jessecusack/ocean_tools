@@ -6,114 +6,175 @@ Created on Thu Jan 21 11:53:40 2016
 """
 
 import numpy as np
-import numpy.random as random
 
 
-def noise(N, dx, beta, mu=1., std=0.2):
-    """Generate a noise with a given spectral slope, beta.
+def noise(N, dx, slope, c=1., ret_spec=False):
+    """Generate a noise with a given spectral slope.
 
     Parameters
     ----------
-    N : scalar
+    N : int
         Number of noise points to generate.
-    dx : scalar
+    dx : float
         Sample spacing, i.e. if time series in seconds, the number of seconds
         between consecutive measurements.
-    beta :scalar
+    slope :float
         Power spectral slope of the noise. Negative for red noise, positive for
         blue noise.
-    mu : scalar
-        Mean of the random array that multiplies the spectrum magnitude.
-    std: scalar
-        Standard deviation of the random array that multiplies the spectrum
-        magnitude.
+    c : float, optional
+        Multiply the spectrum by this factor the change the magnitude of the
+        noise.
+    ret_spec : boolean, optional
+        Default False. If True, also return the fft spectrum.
 
     Returns
     -------
-    y : 1D array
+    x : 1D array
         Noise.
+    Fx : optional
+        Noise spectrum.
 
     Notes
     -----
-    The function first generates a spectrum with given slope beta, with random
-    phase, then performs an inverse FFT to generate the series.
+    The function first generates a spectrum with given slope slope, with random
+    phase, then performs an inverse FFT to generate the noise series.
 
     """
-
     # Quick fix for odd N.
     if N % 2 == 1:
-        Nisodd = True
+        oddN = True
         N += 1
     else:
-        Nisodd = False
+        oddN = False
 
     f = np.fft.fftfreq(N, dx)[1:N/2]
     fNy = (1./(2.*dx))
-    b = beta/2.  # Half because power spectrum is fourier spectrum squared.
+    b = slope/2.  # Half because power spectrum is fourier spectrum squared.
+    mag = f**b
 
-    # Not sure if multiplying magnitude by normally distributed random numbers
-    # is approprimate... maybe a poisson distribution is better?
-    mag = (std*random.randn(N/2-1) + mu)*f**b
-    magNy = np.sign(random.randn())*(std*random.randn() + mu)*fNy**b
+    # Normalise magnitude so series std roughly 0.1
+    magmax = 0.1*np.max(mag)
+    mag = c*mag/magmax
+    magNy = c*np.sqrt(2.)*fNy**b/magmax
 
-    # Normalise the spectra so the intagrel is 1. There might be a bug here in
-    # that the Nyquist freq doesn't want to be multiplied by 2.
-    I = 2*np.trapz(np.hstack((mag, magNy)), np.hstack((f, fNy)))
-    mag /= I
-    magNy /= I
-
-    phase = random.rand(N/2-1)*2.*np.pi
-
+    # Construct the spectrum with random phase.
+    phase = np.random.rand(N/2-1)*2.*np.pi
     real = np.zeros(N)
     imag = np.zeros(N)
-
     real[1:N/2] = mag*np.cos(phase)
     imag[1:N/2] = mag*np.sin(phase)
     real[:N/2:-1] = real[1:N/2]
     imag[:N/2:-1] = -imag[1:N/2]
-
-    # Real part of Nyquist frequency has magnitude too!
     real[N/2] = magNy
-
-    Fy = real + 1j*imag
-
-    out = np.fft.ifft(Fy).real
+    Fx = real + 1j*imag
+    # Inverse transform to generate series.
+    x = np.fft.ifft(Fx).real
 
     # Quick fix for odd N.
-    if Nisodd:
-        out = out[:-1]
+    if oddN:
+        x = x[:-1]
 
-    return out
+    if ret_spec:
+        return x, Fx
+    else:
+        return x
 
 
-if __name__ == "__main__":
+def more_noise(N, dx, slopes, fc, c=1., ret_spec=False):
+    """Generate a noise with a given spectrum.
 
-    import matplotlib.pyplot as plt
-    import scipy.signal as sig
-    from scipy.optimize import curve_fit
+    Parameters
+    ----------
+    N : int
+        Number points to generate.
+    dx : float
+        Sample spacing, i.e. if time series in seconds, the number of seconds
+        between consecutive measurements.
+    slopes : array of floats
+        Power spectral slopes of the noise. Negative for red noise and positive
+        for blue. e.g. [0., -2, 0., 1]. There should be one more slope than
+        change frequency.
+    fc : array
+        Frequencies at which the slope changes, specified in order of
+        increasing frequency. e.g. [1, 10, 50]. There should be one less change
+        frequency than slope!
+    c : float, optional
+        Multiply the spectrum by this factor the change the magnitude of the
+        noise.
+    ret_spec : boolean, optional
+        Default False. If True, also return the fft spectrum.
 
-    dx = 1.
-    N = 2048
-    beta = -2.
+    Returns
+    -------
+    x : 1D array
+        Noise.
+    Fx : optional
+        Noise spectrum.
 
-    x = np.arange(0., N*dx, dx)
-    y = noise(N, dx, beta)
+    """
+    slopes = np.asarray(slopes)
+    fc = np.asarray(fc)
 
-    f, Py = sig.periodogram(y, 1./dx)
-    Py[0] = 0.
+    if np.ndim(fc) == 0:
+        fc = fc[np.newaxis]
 
-    Pyfit = lambda x, a, b: a*x + b
-    popt, __ = curve_fit(Pyfit, np.log10(f[1:]), np.log10(Py[1:]), p0=[1., 1.])
-    a, b = popt
+    Ns = slopes.size
+    Nfc = fc.size
 
-    fig, axs = plt.subplots(1, 2)
-    axs[0].loglog(f, Py, 'k', label=None)
-    axs[0].loglog(f[1:], f[1:]**a*10**b, 'r',
-                  label="Fit exponent: {:1.0f}".format(popt[0]))
-    axs[1].plot(x, y, 'k')
+    if Ns < 2:
+        raise ValueError("Please specify more than one slope or use the noise"
+                         " function")
 
-    axs[0].set_xlabel('Frequency')
-    axs[0].set_ylabel('Variance')
-    axs[1].set_xlabel('Time')
+    if not Ns == (Nfc+1):
+        raise ValueError("There should be one more slope specified than change"
+                         " frequency.")
 
-    axs[0].legend(loc=0)
+    if N % 2 == 1:
+        oddN = True
+        N += 1
+    else:
+        oddN = False
+
+    slopes /= 2.  # Half because power spectrum is fourier spectrum squared.
+    f = np.fft.fftfreq(N, dx)[1:N/2]
+    fNy = (1./(2.*dx))  # Nyquist frequency
+
+    Nf = N/2 - 1
+    idx = np.searchsorted(f, fc)
+    idxs = np.hstack((0, idx, Nf))
+    mag = np.zeros(Nf)
+
+    coefs = np.ones(Ns)
+    for i in range(Nfc):
+        coefs[i+1] = coefs[i]*fc[i]**(slopes[i]-slopes[i+1])
+
+    for i in range(Ns):
+        i1, i2 = idxs[i], idxs[i+1]
+        mag[i1:i2] = coefs[i]*f[i1:i2]**slopes[i]
+
+    # Normalise magnitude so series std roughly 0.1
+    magmax = 0.1*np.max(mag)
+    mag = c*mag/magmax
+    magNy = c*np.sqrt(2.)*coefs[-1]*fNy**slopes[-1]/magmax
+
+    # Construct the spectrum with random phase.
+    phase = np.random.rand(N/2-1)*2.*np.pi
+    real = np.zeros(N)
+    imag = np.zeros(N)
+    real[1:N/2] = mag*np.cos(phase)
+    imag[1:N/2] = mag*np.sin(phase)
+    real[:N/2:-1] = real[1:N/2]
+    imag[:N/2:-1] = -imag[1:N/2]
+    real[N/2] = magNy
+    Fx = real + 1j*imag
+    # Inverse transform to generate series.
+    x = np.fft.ifft(Fx).real
+
+    # Quick fix for odd N.
+    if oddN:
+        x = x[:-1]
+
+    if ret_spec:
+        return x, Fx
+    else:
+        return x
