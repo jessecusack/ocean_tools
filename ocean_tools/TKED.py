@@ -824,7 +824,6 @@ def thorpe_scales(z, x, acc=1e-3, R0=0.25, full_output=False):
             # Check for noise.
             q = x_sorted[jdxs[i+1]] - x_sorted[jdxs[i]]
             if q < acc:
-#                print('Below measurement accuracy.')
                 continue
 
             odxs = slice(jdxs[i], jdxs[i+1])
@@ -840,9 +839,7 @@ def thorpe_scales(z, x, acc=1e-3, R0=0.25, full_output=False):
             L_neg_ = 1.*np.sum(thorpe_disp_o < 0)
             L_pos_ = 1.*np.sum(thorpe_disp_o > 0)
             R_ = np.minimum(L_neg_/L_tot, L_pos_/L_tot)
-
             if R_ < R0:
-#                print('Salinity spike probably.')
                 continue
 
             L_neg[odxs] = L_neg_
@@ -1027,3 +1024,186 @@ def VKE_method(z, w, width=320., overlap=160., c=0.021, m0=1., mc=0.1):
         z_mid.append((z_[0] + z_[-1])/2.)
 
     return np.asarray(z_mid), np.asarray(epsilon)
+
+
+def intermediate_profile1(x, hinge=1000, delta=1e-3, kind='bottom up'):
+    """Generate an intermediate profile of some quantity. Ferron et. al. 1998.
+
+    Parameters
+    ----------
+    x : 1D array
+        Temperature or density.
+    hinge : float, optional
+        Hinge temperature or density.
+    delta : float, optional
+        Step,
+    kind : string, optional
+        Either 'bottom up', 'top down' or 'average'.
+
+    Returns
+    -------
+    y : 1D array
+        Reference buoyancy frequency [s-2]
+
+    """
+    xf = np.flipud(x)
+
+    xtd = np.zeros_like(x)
+    xbu = np.zeros_like(x)
+
+    ntd = np.fix(x[0]/delta - hinge/delta)
+    nbu = np.fix(xf[0]/delta - hinge/delta)
+
+    xtd[0] = hinge + ntd*delta
+    xbu[0] = hinge + nbu*delta
+
+    for i in range(len(x) - 1):
+        ntd = np.fix(x[i+1]/delta - xtd[i]/delta)
+        nbu = np.fix(xf[i+1]/delta - xbu[i]/delta)
+
+        xtd[i+1] = xtd[i] + ntd*delta
+        xbu[i+1] = xbu[i] + nbu*delta
+
+    xbu = np.flipud(xbu)
+
+    xav = (xtd + xbu)/2.
+
+    if 'up' in kind:
+        return xbu
+    elif 'down' in kind:
+        return xtd
+    elif 'av' in kind:
+        return xav
+
+
+def thorpe_scales1(z, x, acc=1e-3, R0=0.25, full_output=False,
+                   use_int_prof=False, **ip_kwargs):
+    """Estimate thorpe scales. Thorpe et. al. 1977
+    Code modified from Kurt Polzin I believe.
+    Contains Gargett and Garner 2008 validation ratio.
+
+    Parameters
+    ----------
+    z : 1D array
+        Height. [m] (Negative depth!)
+    x : 1D array
+        Density. [kg m-3]
+    acc : float, optional
+        Accuracy of the x measurement.
+    R0 : float, optional
+        Validation ratio criteria, default 0.25.
+    full_output : boolean, optional
+        Return all diagnostic variables. Also calculates N squared.
+    use_int_prof : boolean, optional
+        Use the intermediate profile method of Ferron.
+    ip_kwargs : dict, optional
+        Keyword arguments for the intermediate profile method.
+
+    Returns
+    -------
+    LT : 1D array
+        Thorpe scales. [m]
+    Td : 1D array
+        Thorpe displacements. [m]
+    Nsqo : 1D array, optional
+        Mean square buoyancy frequency at the overturns. [rad2 s-2]
+    Lo : 1D array, optional
+        Overturn length. [m]
+    R : 1D array, optional
+        Overturn ratio.
+    x_sorted : 1D array, optional
+        Sorted density. [kg m-3]
+    idxs : 1D array, optional
+        Indexes required to sort.
+    """
+    g = -9.807  # Gravitational acceleration [m s-2]
+    x_ = x.copy()
+
+    # x should be increasing for this algorithm to work.
+    flip_x = False
+    if x[0] > x[-1]:
+        x_ = np.flipud(x_)
+        x = np.flipud(x)
+        z = np.flipud(z)
+        flip_x = True
+
+    if use_int_prof:
+        x = intermediate_profile1(x, **ip_kwargs)
+
+    # This is for estimating the length of the overturns.
+    dz = 0.5*(z[:-2] - z[2:])
+    dz = np.hstack((dz[0], dz, dz[-1]))
+
+    # Make sure that no overturns involve the first or last points.
+    x[0] = x.min() - 1e-8
+    x[-1] = x.max() + 1e-8
+
+    # Sort the profile.
+    idxs = np.argsort(x)
+    x_sorted = x[idxs]
+
+    # Estimate buoyancy frequency.
+    if full_output:
+        Nsqo = np.zeros_like(x)
+        xm = np.mean(x)
+        # No minus sign on front here because flipped array.
+        Nsq = g*np.gradient(x_[idxs])/(xm*np.gradient(z))
+
+    # Calculate thorpe displacements.
+    Td = z[idxs] - z
+
+    # Index displacements.
+    idxs_disp = idxs - np.arange(len(idxs))
+
+    # Overturn bounds where cumulative sum is zero.
+    idxs_sum = np.cumsum(idxs_disp)
+
+    # This plus 1 here seems to make the indexing work in python.
+    jdxs = np.squeeze(np.argwhere(idxs_sum == 0)) + 1
+
+    LT = np.zeros_like(x)
+    Lo = np.zeros_like(x)
+    R = np.zeros_like(x)
+
+    # Calculate the RMS thorpe displacement over each overturn.
+    for i in range(len(jdxs)-1):
+        if jdxs[i+1] - jdxs[i] > 1:
+            # Check for noise.
+            q = x_sorted[jdxs[i+1]] - x_sorted[jdxs[i]]
+            if q < acc:
+                continue
+
+            odxs = slice(jdxs[i], jdxs[i+1])
+
+            # Overturn ratio of Gargett & Garner
+            Tdo = Td[odxs]
+            dzo = dz[odxs]
+            L_tot = np.sum(dzo)
+            L_neg = np.sum(dzo[Tdo < 0])
+            L_pos = np.sum(dzo[Tdo > 0])
+            R_ = np.minimum(L_neg/L_tot, L_pos/L_tot)
+            if R_ < R0:
+                continue
+
+            # Store data.
+            Lo[odxs] = L_tot
+            R[odxs] = R_
+            LT[odxs] = np.sqrt(np.mean(Tdo**2))
+
+            Nsqo[odxs] = np.mean(Nsq[odxs])
+
+    # Lastly if the arrays were not increasing at the beginning and were
+    # flipped they need to be put back how they were.
+    if flip_x:
+        LT = np.flipud(LT)
+        Td = np.flipud(Td)
+        x_sorted = np.flipud(x_sorted)
+        idxs = np.flipud(idxs)
+        Lo = np.flipud(Lo)
+        R = np.flipud(R)
+        Nsqo = np.flipud(Nsqo)
+
+    if full_output:
+        return LT, Td, Nsqo, Lo, R, x_sorted, idxs
+    else:
+        return LT
