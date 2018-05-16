@@ -14,6 +14,7 @@ import scipy.signal as sig
 import matplotlib.pyplot as plt
 from . import window
 from . import GM
+from . import utils
 
 
 # Define some standard parameters.
@@ -1079,7 +1080,6 @@ def intermediate_profile1(x, hinge=1000, delta=1e-3, kind='bottom up'):
 def thorpe_scales1(z, x, acc=1e-3, R0=0.25, full_output=False,
                    use_int_prof=False, **ip_kwargs):
     """Estimate thorpe scales. Thorpe et. al. 1977
-    Code modified from Kurt Polzin I believe.
     Contains Gargett and Garner 2008 validation ratio.
 
     Parameters
@@ -1118,6 +1118,10 @@ def thorpe_scales1(z, x, acc=1e-3, R0=0.25, full_output=False,
     """
     g = -9.807  # Gravitational acceleration [m s-2]
     x_ = x.copy()
+    LT = np.zeros_like(x)
+    Lo = np.zeros_like(x)
+    R = np.zeros_like(x)
+    Nsqo = np.zeros_like(x)
 
     # x should be increasing for this algorithm to work.
     flip_x = False
@@ -1135,62 +1139,59 @@ def thorpe_scales1(z, x, acc=1e-3, R0=0.25, full_output=False,
     dz = np.hstack((dz[0], dz, dz[-1]))
 
     # Make sure that no overturns involve the first or last points.
-    x[0] = x.min() - 1e-8
-    x[-1] = x.max() + 1e-8
+    x[0] = x.min() - 1e-4
+    x[-1] = x.max() + 1e-4
 
     # Sort the profile.
     idxs = np.argsort(x)
     x_sorted = x[idxs]
-
     # Estimate buoyancy frequency.
-    if full_output:
-        Nsqo = np.zeros_like(x)
-        xm = np.mean(x)
-        # No minus sign on front here because flipped array.
-        Nsq = g*np.gradient(x_[idxs])/(xm*np.gradient(z))
-
+    Nsq = g*np.gradient(x_[idxs], z)/np.mean(x)
     # Calculate thorpe displacements.
     Td = z[idxs] - z
-
     # Index displacements.
     idxs_disp = idxs - np.arange(len(idxs))
-
     # Overturn bounds where cumulative sum is zero.
     idxs_sum = np.cumsum(idxs_disp)
+    # Find overturns.
+    odxs_ = utils.contiguous_regions(idxs_sum > 0)
 
-    # This plus 1 here seems to make the indexing work in python.
-    jdxs = np.squeeze(np.argwhere(idxs_sum == 0)) + 1
+    if odxs_.size == 0:  # No oveturns at all!
+        if full_output:
+            return LT, Td, Nsqo, Lo, R, x_sorted, idxs
+        else:
+            return LT
 
-    LT = np.zeros_like(x)
-    Lo = np.zeros_like(x)
-    R = np.zeros_like(x)
+    cut = (odxs_[:, 1] - odxs_[:, 0]) == 1
+    if odxs_[0, 0] == 0:
+        cut[0] = True
+
+    odxs = odxs_[~cut, :]
 
     # Calculate the RMS thorpe displacement over each overturn.
-    for i in range(len(jdxs)-1):
-        if jdxs[i+1] - jdxs[i] > 1:
-            # Check for noise.
-            q = x_sorted[jdxs[i+1]] - x_sorted[jdxs[i]]
-            if q < acc:
-                continue
+    for j1, j2 in odxs:
+        odx = slice(j1, j2)
+        # Check for noise.
+        q = x_sorted[j2] - x_sorted[j1]
+        if q < acc:
+            continue
 
-            odxs = slice(jdxs[i], jdxs[i+1])
+        # Overturn ratio of Gargett & Garner
+        Tdo = Td[odx]
+        dzo = dz[odx]
+        L_tot = np.sum(dzo)
+        L_neg = np.sum(dzo[Tdo < 0])
+        L_pos = np.sum(dzo[Tdo > 0])
+        R_ = np.minimum(L_neg/L_tot, L_pos/L_tot)
+        if R_ < R0:
+            continue
 
-            # Overturn ratio of Gargett & Garner
-            Tdo = Td[odxs]
-            dzo = dz[odxs]
-            L_tot = np.sum(dzo)
-            L_neg = np.sum(dzo[Tdo < 0])
-            L_pos = np.sum(dzo[Tdo > 0])
-            R_ = np.minimum(L_neg/L_tot, L_pos/L_tot)
-            if R_ < R0:
-                continue
+        # Store data.
+        Lo[odx] = L_tot
+        R[odx] = R_
+        LT[odx] = np.sqrt(np.mean(Tdo**2))
 
-            # Store data.
-            Lo[odxs] = L_tot
-            R[odxs] = R_
-            LT[odxs] = np.sqrt(np.mean(Tdo**2))
-
-            Nsqo[odxs] = np.mean(Nsq[odxs])
+        Nsqo[odx] = np.mean(Nsq[odx])
 
     # Lastly if the arrays were not increasing at the beginning and were
     # flipped they need to be put back how they were.
