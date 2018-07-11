@@ -15,6 +15,7 @@ library or numpy and scipy.
 import numpy as np
 import scipy.signal as sig
 import scipy.io as io
+import scipy.stats as stats
 from datetime import datetime, timedelta
 
 
@@ -229,6 +230,94 @@ def nansort(a, axis=-1, kind='quicksort'):
                 a_sorted[i, ~nans[i, :]] = np.sort(a_valid, kind=kind)
 
     return a_sorted
+
+
+def nantrapz(y, x=None, dx=1.0, axis=0, xave=False):
+    """
+    Integrate along the given axis using the composite trapezoidal rule.
+
+    Integrate `y` (`x`) along given axis. NaN values are removed.
+
+    Parameters
+    ----------
+    y : array_like
+        Input array to integrate.
+    x : array_like, optional
+        The sample points corresponding to the `y` values. If `x` is None,
+        the sample points are assumed to be evenly spaced `dx` apart. The
+        default is None.
+    dx : scalar, optional
+        The spacing between sample points when `x` is None. The default is 1.
+    axis : int, optional
+        The axis along which to integrate.
+    xave : boolean, optional
+        If True then the integral average is estimated by dividing the final
+        integral by the range of x values. Default is False. Behaviour is
+        inaccurate for very gappy data.
+
+    Returns
+    -------
+    yint : float
+        Definite integral as approximated by trapezoidal rule.
+
+    """
+    if x is None:
+        x = np.full_like(y, dx)
+
+    ndimy = np.ndim(y)
+    ndimx = np.ndim(x)
+
+    if ndimy == ndimx == 1:
+        nans = np.isnan(x) | np.isnan(y)
+        nnans = ~nans
+        yint = np.trapz(y[nnans], x[nnans])
+
+        if xave:
+            yint /= np.diff(x[nnans]).sum()
+
+    if ndimy == 2 and ndimx == 1:
+        ni, nj = y.shape
+        nx = x.size
+
+        if ni == nx:
+            x = np.tile(x[:, np.newaxis], (1, nj))
+            axis = 0
+        elif nj == nx:
+            x = np.tile(x[np.newaxis, :], (ni, 1))
+            axis = 1
+        else:
+            raise ValueError('Size of x does not match any axis size of y.')
+
+        ndimx = 2
+
+    if ndimy == ndimx == 2:
+        nans = np.isnan(x) | np.isnan(y)
+        nnans = ~nans
+
+        if axis is 0:
+            nj = y.shape[1]
+            yint = np.full((nj,), np.nan)
+            for j in range(nj):
+                if nans[:, j].all():
+                    continue
+                y_ = y[nnans[:, j], j]
+                x_ = x[nnans[:, j], j]
+                yint[j] = np.trapz(y_, x_)
+
+        if axis is 1 or axis is -1:
+            ni = y.shape[0]
+            yint = np.full((ni,), np.nan)
+            for i in range(ni):
+                if nans[i, :].all():
+                    continue
+                y_ = y[i, nnans[i, :]]
+                x_ = x[i, nnans[i, :]]
+                yint[i] = np.trapz(y_, x_)
+
+        if xave:
+            yint /= np.nansum(np.diff(x, axis=axis), axis=axis)
+
+    return yint
 
 
 def finite_diff(x, y, ivar=None, order=1, acc=1):
