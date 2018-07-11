@@ -528,6 +528,16 @@ def nan_detrend(x, y, deg=1):
     return y_out
 
 
+def nan_binned_statistic(x, values, statistic='mean', bins=10, range=None):
+    """See help for scipy.stats.binned_statistic. This is the same but removes
+    NaN values."""
+    x = x.flatten()
+    values = values.flatten()
+    nnans = ~(np.isnan(values) | np.isnan(x))
+    return stats.binned_statistic(x[nnans], values[nnans], statistic=statistic,
+                                  bins=bins, range=range)
+
+
 def std_spike_detector(x, N):
     """Returns boolean for values in exceed the mean by more than N standard
     deviations.
