@@ -150,6 +150,21 @@ def distll(lon_0, lat_0, x, y):
     return lons, lats
 
 
+def mid(x, axis=None):
+    """Returns mid point values along given axis."""
+    ndim = np.ndim(x)
+    if axis is None and ndim == 1:
+        return 0.5*(x[1:] + x[:-1])
+    elif ndim > 1:
+        if axis is None:
+            axis = 0
+        x_ = np.swapaxes(x, axis, 0)
+        xmid_ = 0.5*(x_[1:, ...] + x_[:-1, ...])
+        return np.swapaxes(xmid_, 0, axis)
+    else:
+        raise ValueError
+
+
 def flip_padded(data, cols=None):
     """Input an array of data. Receive flipped array. If array is two
     dimensional then a list of columns should be provided else the whole matrix
