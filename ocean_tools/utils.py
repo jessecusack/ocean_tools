@@ -150,14 +150,12 @@ def distll(lon_0, lat_0, x, y):
     return lons, lats
 
 
-def mid(x, axis=None):
+def mid(x, axis=0):
     """Returns mid point values along given axis."""
     ndim = np.ndim(x)
-    if axis is None and ndim == 1:
+    if ndim == 1:
         return 0.5*(x[1:] + x[:-1])
     elif ndim > 1:
-        if axis is None:
-            axis = 0
         x_ = np.swapaxes(x, axis, 0)
         xmid_ = 0.5*(x_[1:, ...] + x_[:-1, ...])
         return np.swapaxes(xmid_, 0, axis)
