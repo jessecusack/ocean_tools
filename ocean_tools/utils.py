@@ -163,6 +163,11 @@ def mid(x, axis=0):
         raise ValueError
 
 
+def rotate(x, y, a):
+    """Rotate vector (x, y) by an angle a."""
+    return x*np.cos(a) + y*np.sin(a), -x*np.sin(a) + y*np.cos(a)
+
+
 def flip_padded(data, cols=None):
     """Input an array of data. Receive flipped array. If array is two
     dimensional then a list of columns should be provided else the whole matrix
