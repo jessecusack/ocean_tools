@@ -24,6 +24,16 @@ class Bunch(object):
         self.__dict__.update(kwargs)
 
 
+def wrapphase(x):
+    """Keep phase between 0 and 2pi."""
+    return np.pi*2*(x/(np.pi*2) - np.floor_divide(x, np.pi*2))
+
+
+def closearr(x):
+    """Add first array value to end. 1D arrays only!"""
+    return np.hstack((x, x[0]))
+
+
 def datenum_to_datetime(datenum):
     """
     Convert a MATLAB datenums into python datetimes.
