@@ -183,7 +183,7 @@ def adiabatic_level_gsw(P, S, T, lon, lat, bin_width=100., order=1,
         Latitude [-90...+90]
     bin_width : float, optional
         Pressure bin width [dbar]
-    deg : int, optional
+    order : int, optional
         Degree of polynomial fit. (DEGREES HIGHER THAN 1 NOT PROPERLY TESTED)
     ret_coefs : bool, optional
         Flag to return additional argument pcoefs. False by default.
@@ -1077,7 +1077,7 @@ def intermediate_profile1(x, hinge=1000, delta=1e-3, kind='bottom up'):
         return xav
 
 
-def thorpe_scales1(z, x, acc=1e-3, R0=0.25, full_output=False,
+def thorpe_scales1(z, x, acc=1e-3, R0=0.25, Nsq=None, full_output=False,
                    use_int_prof=False, **ip_kwargs):
     """Estimate thorpe scales. Thorpe et. al. 1977
     Contains Gargett and Garner 2008 validation ratio.
@@ -1092,6 +1092,8 @@ def thorpe_scales1(z, x, acc=1e-3, R0=0.25, full_output=False,
         Accuracy of the x measurement.
     R0 : float, optional
         Validation ratio criteria, default 0.25.
+    Nsq : 1D array, optional
+        Buoyancy frequency squared. [rad2 s-2]
     full_output : boolean, optional
         Return all diagnostic variables. Also calculates N squared.
     use_int_prof : boolean, optional
@@ -1146,7 +1148,8 @@ def thorpe_scales1(z, x, acc=1e-3, R0=0.25, full_output=False,
     idxs = np.argsort(x)
     x_sorted = x[idxs]
     # Estimate buoyancy frequency.
-    Nsq = g*np.gradient(x_[idxs], z)/np.mean(x)
+    if Nsq is None:
+        Nsq = g*np.gradient(x_[idxs], z)/np.mean(x)
     # Calculate thorpe displacements.
     Td = z[idxs] - z
     # Index displacements.
