@@ -34,6 +34,12 @@ def closearr(x):
     return np.hstack((x, x[0]))
 
 
+def convolve_smooth(x, win=10, mode='same'):
+    """Smooth data using a given window size, in units of array elements, using
+    the numpy.convolve function."""
+    return np.convolve(x, np.ones((win,)), mode=mode)/win
+
+
 def datenum_to_datetime(datenum):
     """
     Convert a MATLAB datenums into python datetimes.
