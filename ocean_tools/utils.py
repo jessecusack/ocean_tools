@@ -1014,3 +1014,122 @@ def bin_data(x, bins, x_monotonic=True):
             inbin = (x > bin[0]) & (x < bin[1])
             idxs.append(np.argwhere(inbin))
     return idxs
+
+
+def welchci(x, fs=1.0, conf=0.95, fc=None, bin_sizes=None, nperseg=256,
+            window='hanning', correctfc=False, **kwargs):
+    """Esimate spectra using Welch's method, estimate confidence intervals
+    using method in Emery and Thompson and also perform frequency band
+    averaging. 50% overlapping windows are enforced as this is my
+    interpretation of the textbook. Setting nperseg = len(x) should also work.
+
+    Parameters
+    ----------
+    x : array_like
+        Time series of measurement values
+    fs : float, optional
+        Sampling frequency of the `x` time series. Defaults to 1.0.
+    conf : float
+        Confidence level, default is 0.95.
+    fc : array_like
+        Frequency where frequency band averaging changes.
+    bin_sizes : array_like
+        Frequency band averaging sizes. Array should have one more element than
+        fc.
+    nperseg : int, optional
+        Length of each segment. Defaults to 256.
+    window : str, optional
+        Desired window to use. Defaults to hanning.
+        to a Hann window.
+    correctfc : boolean
+        If True, then the exact point where the band averaging size changes is
+        altered to retain the most data. Otherwise, if an integer number of
+        bins do not fit in the specified frequency range, some data is lost.
+        Data at the end is always at risk of being lost.
+
+    Additional key word arguments passed to scipy.welch.
+
+    Returns
+    -------
+    f : ndarray
+        Array of sample frequencies.
+    Pxx : ndarray
+        Power spectral density or power spectrum of x.
+    cl : float or array
+        Lower confidence multiplier, use like cl*Pxx.
+    cu : float or array
+        Upper confidence multiplier, use like cu*Pxx.
+    EDOF : float or array
+        Equivalent degrees of freedom.
+    """
+
+    # These come from Table 5.5 in Emery and Thompson.
+    fw = {'hanning': 2.666666,
+          'bartlett': 3,
+          'daniell': 2,
+          'parzen': 3.708614,
+          'hamming': 2.5164,
+          'boxcar': 1}
+
+    f, Pxx = sig.welch(x, fs, window, nperseg, nperseg/2, **kwargs)
+    Nx = len(x)
+    alpha = 1 - conf
+
+    if fc is None and bin_sizes is None:
+        EDOF = fw[window]*Nx/(nperseg/2)
+        cl = EDOF/stats.chi2.ppf(1 - alpha/2, EDOF)
+        cu = EDOF/stats.chi2.ppf(alpha/2, EDOF)
+
+        return f, Pxx, cl, cu, EDOF
+
+    if fc is not None and bin_sizes is not None:
+        fc = np.asarray(fc)
+        bin_sizes = np.asarray(bin_sizes)
+        EDOF = np.ones_like(f)*fw[window]*Nx/(nperseg/2)
+
+        if (bin_sizes.size - fc.size) != 1:
+            raise ValueError('bin_sizes should contain one more element than fc')
+
+        ifc = np.asarray(np.searchsorted(f, fc))
+        Nbin = len(bin_sizes)
+        ifc = np.hstack((0, np.searchsorted(f, fc)))
+
+        freqs = []
+        Pxxs = []
+        EDOFs = []
+
+        for i in range(Nbin):
+            bs = bin_sizes[i]
+            if i == Nbin-1:
+                sl = slice(ifc[i], None)
+            else:
+                sl = slice(ifc[i], ifc[i+1])
+
+            if bs == 1:
+                freqs.append(f[sl])
+                Pxxs.append(Pxx[sl])
+                EDOFs.append(EDOF[sl])
+                continue
+
+            Nblock = len(f[sl])
+            Nsbins = int(np.floor(Nblock/bs))
+            cut = Nblock - Nsbins*bs
+            if (i != Nbin-1) and correctfc:
+                ifc[i+1] -= cut
+            freq_ = f[sl][:-cut].reshape((Nsbins, bs), order='C').mean(axis=1)
+            Pxx_ = Pxx[sl][:-cut].reshape((Nsbins, bs), order='C').mean(axis=1)
+            EDOF_ = EDOF[sl][:-cut].reshape((Nsbins, bs), order='C').mean(axis=1)*bs
+            freqs.append(freq_)
+            Pxxs.append(Pxx_)
+            EDOFs.append(EDOF_)
+
+        Pxxs = np.hstack(Pxxs)
+        freqs = np.hstack(freqs)
+        EDOFs = np.hstack(EDOFs)
+
+        alpha = 1 - conf
+
+        cl = EDOFs/stats.chi2.ppf(1 - alpha/2, EDOFs)
+        cu = EDOFs/stats.chi2.ppf(alpha/2, EDOFs)
+
+        return freqs, Pxxs, cl, cu, EDOFs
