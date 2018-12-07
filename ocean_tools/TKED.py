@@ -1131,6 +1131,8 @@ def thorpe_scales1(z, x, acc=1e-3, R0=0.25, Nsq=None, full_output=False,
         x_ = np.flipud(x_)
         x = np.flipud(x)
         z = np.flipud(z)
+        if Nsq is not None:
+            Nsq = np.flipud(Nsq)
         flip_x = True
 
     if use_int_prof:
