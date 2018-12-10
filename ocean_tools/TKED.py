@@ -1108,7 +1108,7 @@ def thorpe_scales1(z, x, acc=1e-3, R0=0.25, Nsq=None, full_output=False,
     Td : 1D array
         Thorpe displacements. [m]
     Nsqo : 1D array, optional
-        Mean square buoyancy frequency at the overturns. [rad2 s-2]
+        Buoyancy frequency of overturns. [rad2 s-2]
     Lo : 1D array, optional
         Overturn length. [m]
     R : 1D array, optional
@@ -1149,9 +1149,6 @@ def thorpe_scales1(z, x, acc=1e-3, R0=0.25, Nsq=None, full_output=False,
     # Sort the profile.
     idxs = np.argsort(x)
     x_sorted = x[idxs]
-    # Estimate buoyancy frequency.
-    if Nsq is None:
-        Nsq = g*np.gradient(x_[idxs], z)/np.mean(x)
     # Calculate thorpe displacements.
     Td = z[idxs] - z
     # Index displacements.
@@ -1195,8 +1192,7 @@ def thorpe_scales1(z, x, acc=1e-3, R0=0.25, Nsq=None, full_output=False,
         Lo[odx] = L_tot
         R[odx] = R_
         LT[odx] = np.sqrt(np.mean(Tdo**2))
-
-        Nsqo[odx] = np.mean(Nsq[odx])
+        Nsqo[odx] = -g*q/(np.mean(x_sorted[odx])*L_tot)
 
     # Lastly if the arrays were not increasing at the beginning and were
     # flipped they need to be put back how they were.
