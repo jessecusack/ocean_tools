@@ -1078,7 +1078,7 @@ def intermediate_profile1(x, hinge=1000, delta=1e-3, kind='bottom up'):
 
 
 def thorpe_scales1(z, x, acc=1e-3, R0=0.25, Nsq=None, full_output=False,
-                   use_int_prof=False, **ip_kwargs):
+                   Nsq_method='bulk', use_int_prof=False, **ip_kwargs):
     """Estimate thorpe scales. Thorpe et. al. 1977
     Contains Gargett and Garner 2008 validation ratio.
 
@@ -1096,6 +1096,9 @@ def thorpe_scales1(z, x, acc=1e-3, R0=0.25, Nsq=None, full_output=False,
         Buoyancy frequency squared. [rad2 s-2]
     full_output : boolean, optional
         Return all diagnostic variables. Also calculates N squared.
+    Nsq_method : string, optional
+        The method used to estimated buoyancy frequency. The options are
+        'endpt' or 'bulk'. See Mater et. al. 2015 for a discussion.
     use_int_prof : boolean, optional
         Use the intermediate profile method of Ferron.
     ip_kwargs : dict, optional
@@ -1119,7 +1122,6 @@ def thorpe_scales1(z, x, acc=1e-3, R0=0.25, Nsq=None, full_output=False,
         Indexes required to sort.
     """
     g = -9.807  # Gravitational acceleration [m s-2]
-    x_ = x.copy()
     LT = np.zeros_like(x)
     Lo = np.zeros_like(x)
     R = np.zeros_like(x)
@@ -1128,7 +1130,6 @@ def thorpe_scales1(z, x, acc=1e-3, R0=0.25, Nsq=None, full_output=False,
     # x should be increasing for this algorithm to work.
     flip_x = False
     if x[0] > x[-1]:
-        x_ = np.flipud(x_)
         x = np.flipud(x)
         z = np.flipud(z)
         if Nsq is not None:
@@ -1136,7 +1137,7 @@ def thorpe_scales1(z, x, acc=1e-3, R0=0.25, Nsq=None, full_output=False,
         flip_x = True
 
     if use_int_prof:
-        x = intermediate_profile1(x, **ip_kwargs)
+        x = intermediate_profile(x, **ip_kwargs)
 
     # This is for estimating the length of the overturns.
     dz = 0.5*(z[:-2] - z[2:])
@@ -1191,8 +1192,16 @@ def thorpe_scales1(z, x, acc=1e-3, R0=0.25, Nsq=None, full_output=False,
         # Store data.
         Lo[odx] = L_tot
         R[odx] = R_
-        LT[odx] = np.sqrt(np.mean(Tdo**2))
-        Nsqo[odx] = -g*q/(np.mean(x_sorted[odx])*L_tot)
+        LT_ = np.sqrt(np.mean(Tdo**2))
+        LT[odx] = LT_
+        if Nsq_method == 'endpt':
+            Nsqo[odx] = -g*q/(np.mean(x_sorted[odx])*L_tot)
+        elif Nsq_method == 'bulk':
+            dx = x[odx] - x_sorted[odx]
+            dxrms = np.sqrt(np.mean(dx**2))
+            Nsqo[odx] = -g*dxrms/(np.mean(x_sorted[odx])*LT_)
+        else:
+            raise ValueError("Nsq_method can be either 'endpt' or 'bulk'.")
 
     # Lastly if the arrays were not increasing at the beginning and were
     # flipped they need to be put back how they were.
