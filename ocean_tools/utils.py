@@ -438,6 +438,7 @@ def nan_interp(x, xp, fp, left=None, right=None, axis=0, squeeze_me=True):
         Default is 0. The axis along which to perform the interpolation.
     squeeze_me : boolean
         Default is True. Squeeze output to remove singleton dimensions.
+
     Returns
     -------
     y : ndarray
@@ -512,7 +513,6 @@ def nan_polyvalfit(x, y, deg):
     deg : int
         Degree of polynomial to fit. (Can be zero i.e. constant)
 
-
     Returns
     -------
     y_out : numpy.array
@@ -537,7 +537,6 @@ def nan_detrend(x, y, deg=1):
         Data to detrend.
     deg : int
         Degree of polynomial to subtract. (Can be zero i.e. constant)
-
 
     Returns
     -------
@@ -570,6 +569,38 @@ def nan_binned_statistic(x, values, statistic='mean', bins=10, range=None):
     nnans = ~(np.isnan(values) | np.isnan(x))
     return stats.binned_statistic(x[nnans], values[nnans], statistic=statistic,
                                   bins=bins, range=range)
+
+
+def apply_to_binned(x, y, bins, statistic, kwargs={}, axis=0):
+    """Bin data along a given axis. The data is binned by x value and then the
+    statistic is applied to the corresponding y values.
+    This makes use of numpy.digitize ability to ignore NaN values.
+    If y is 2D then x should also be. Empty bins are filled with NaN."""
+    nbins = len(bins) - 1
+    ndim = np.ndim(y)
+    if ndim == 1:
+        out = np.full((nbins,), np.nan)
+        idxs = np.digitize(x, bins)
+        for i in range(nbins):
+            y_ = y[idxs == i+1]
+            out[i] = (statistic(y_, **kwargs))
+    if ndim == 2:
+        nr, nc = y.shape
+        if axis == 0:
+            out = np.full((nbins, nc), np.nan)
+            for i in range(nc):
+                idxs = np.digitize(x[:, i], bins)
+                for j in range(nbins):
+                    y_ = y[idxs == j+1, i]
+                    out[j, i] = (statistic(y_, **kwargs))
+        elif axis == 1 or axis == -1:
+            out = np.full((nr, nbins), np.nan)
+            for i in range(nr):
+                idxs = np.digitize(x[i, :], bins)
+                for j in range(nbins):
+                    y_ = y[i, idxs == j+1]
+                    out[i, j] = (statistic(y_, **kwargs))
+    return out
 
 
 def std_spike_detector(x, N):
