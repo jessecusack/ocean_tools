@@ -74,6 +74,13 @@ def datenum_to_datetime(datenum):
     return dt
 
 
+def datetime64_to_datenum(dt):
+    """Skeleton function might work needs improving."""
+    dt = dt.astype('datetime64[s]')
+    dt0 = np.datetime64('0000-01-01T00:00:00')
+    return (dt - dt0)/np.timedelta64(86400, 's') + 1
+
+
 def datetime_to_datenum(dt):
     """
     Convert a python datetime object into a MATLAB datenum.
@@ -490,6 +497,81 @@ def nan_interp(x, xp, fp, left=None, right=None, axis=0, squeeze_me=True):
         return np.squeeze(y)
     else:
         return y
+
+
+def interp_nans(x, y, y0=0, left=None, right=None, axis=0):
+    """Fill NaNs in an array by interpolation.
+
+    Parameters
+    ----------
+    x : 1D or 2D array
+        The x-coordinates of the interpolated values. No NaNs please! should
+        be monotonically increasing I think.
+    y : 1D or 2D array of floats
+        The y-coordinates that will be filled.
+    y0 : float
+        Default fill value for rows or columns that are all NaN.
+    left : optional float or complex corresponding to fp
+        Value to return for `x < xp[0]`, default is `fp[0]`.
+    right : optional float or complex corresponding to fp
+        Value to return for `x > xp[-1]`, default is `fp[-1]`.
+    axis : [-1, 0, 1] int
+        Default is 0. The axis along which to perform the interpolation.
+
+    Returns
+    -------
+    yf : ndarray
+        The interpolated array. Same size as y
+    """
+    if axis not in [-1, 0, 1]:
+        raise ValueError('The axis may be only -1, 0 or 1.')
+
+    ndimy = np.ndim(y)
+    ndimx = np.ndim(x)
+    if ndimy > 2 or ndimx > 2:
+        raise ValueError('Only 1 or 2 dimensional arrays are supported.')
+
+    nans = np.isnan(y)
+
+    if ndimy == 1:
+        yf = y.copy()
+        yf[nans] = np.interp(x[nans], x[~nans], y[~nans], left, right)
+    if ndimy == 2:
+        yf = y.copy()
+        nr, nc = y.shape
+
+        if axis == 0:
+            for j in range(nc):
+                nanr = nans[:, j]
+                if nanr.all():
+                    yf[:, j] = y0
+                    continue
+                if not nanr.any():
+                    continue
+                if ndimx == 2:
+                    x_ = x[:, j]
+                    yf[nanr, j] = np.interp(x_[nanr], x_[~nanr], y[~nanr, j],
+                                            left, right)
+                else:
+                    yf[nanr, j] = np.interp(x[nanr], x[~nanr], y[~nanr, j],
+                                            left, right)
+
+        if axis == 1 or axis == -1:
+            for i in range(nr):
+                nanc = nans[i, :]
+                if nanc.all():
+                    yf[i, :] = y0
+                    continue
+                if not nanc.any():
+                    continue
+                if ndimx == 2:
+                    x_ = x[i, :]
+                    yf[i, nanc] = np.interp(x_[nanc], x_[~nanc], y[i, ~nanc],
+                                            left, right)
+                else:
+                    yf[i, nanc] = np.interp(x[nanc], x[~nanc], y[i, ~nanc],
+                                            left, right)
+    return yf
 
 
 def nan_polyfit(x, y, deg, rcond=None, full=False, w=None, cov=False):
