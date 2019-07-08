@@ -10,6 +10,7 @@ matplotlib and basemap.
 @author: jc3e13
 """
 
+import os
 import numpy as np
 
 
@@ -110,7 +111,7 @@ def read_grid(lon_lat, file_path=None):
     bathy_grid = np.ndarray(lat_grid.shape, dtype='i2')
 
     if file_path is None:
-        file_path = '../../data/sandwell_bathymetry/topo_17.1.img'
+        file_path = os.path.expanduser('~/data/smith_sandwell/topo_17.1.img')
 
     with open(file_path, 'rb') as f:
         for i in range(Nlats):
