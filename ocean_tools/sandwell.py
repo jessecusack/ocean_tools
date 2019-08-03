@@ -12,6 +12,7 @@ matplotlib and basemap.
 
 import os
 import numpy as np
+import glob
 
 
 def read_grid(lon_lat, file_path=None):
@@ -111,7 +112,7 @@ def read_grid(lon_lat, file_path=None):
     bathy_grid = np.ndarray(lat_grid.shape, dtype='i2')
 
     if file_path is None:
-        file_path = os.path.expanduser('~/data/smith_sandwell/topo_17.1.img')
+        file_path = glob.glob(os.path.expanduser('~/data/smith_sandwell/topo_*.img'))[0]
 
     with open(file_path, 'rb') as f:
         for i in range(Nlats):
