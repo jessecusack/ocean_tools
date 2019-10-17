@@ -183,9 +183,24 @@ def cgz(k, m, N, l=0., f=0.):
     return num/den
 
 
+def cgvec(k, l, m, N, f):
+    """Group velocity vector."""
+    om = omega(N, k, m, l, f)
+    phi = phip(k, m, l)
+    lamb = lambdap(k, l)
+    mag = np.cos(phi)*np.sin(phi)*(N**2 - f**2)/(om*np.sqrt(k**2 + l**2 + m**2))
+    dir = np.array([np.sin(phi)*np.cos(lamb), np.sin(phi)*np.sin(lamb), -np.cos(phi)])
+    return mag*dir
+
+
 def phip(k, m, l=0.):
     """Angle between the wavevector and the horizontal."""
     return np.arcsin(np.sqrt(m**2/(k**2 + l**2 + m**2)))
+
+
+def lambdap(k, l):
+    """Azimuthal angle of the wave vector."""
+    return np.arctan2(l, k)
 
 
 def alpha(k, m, l=0.):
