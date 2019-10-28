@@ -40,6 +40,30 @@ def convolve_smooth(x, win=10, mode='same'):
     return np.convolve(x, np.ones((win,)), mode=mode)/win
 
 
+def repand(func, *args):
+    """
+    Perform bitwise and (&) operation on any number of arrays.
+
+    Parameters
+    ----------
+    func : function
+        The function that converts the arrays into boolean arrays. e.g.
+        np.isfinite
+    args : arrays
+        The arrays to compare. They must all be the same shape.
+
+    Returns
+    -------
+    out : boolean ndarray
+        Array of booleans.
+
+    """
+    out = np.full_like(args[0], True, dtype=bool)
+    for arg in args:
+        out = out & func(arg)
+    return out
+
+
 def datenum_to_datetime(datenum):
     """
     Convert a MATLAB datenums into python datetimes.
