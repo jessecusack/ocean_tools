@@ -26,7 +26,7 @@ class Bunch(object):
 
 def wrapphase(x):
     """Keep phase between 0 and 2pi."""
-    return np.pi*2*(x/(np.pi*2) - np.floor_divide(x, np.pi*2))
+    return np.pi * 2 * (x / (np.pi * 2) - np.floor_divide(x, np.pi * 2))
 
 
 def closearr(x):
@@ -34,10 +34,10 @@ def closearr(x):
     return np.hstack((x, x[0]))
 
 
-def convolve_smooth(x, win=10, mode='same'):
+def convolve_smooth(x, win=10, mode="same"):
     """Smooth data using a given window size, in units of array elements, using
     the numpy.convolve function."""
-    return np.convolve(x, np.ones((win,)), mode=mode)/win
+    return np.convolve(x, np.ones((win,)), mode=mode) / win
 
 
 def repand(func, *args):
@@ -82,8 +82,11 @@ def datenum_to_datetime(datenum):
 
     def convert(datenum):
         try:
-            return datetime.fromordinal(int(datenum)) + \
-                timedelta(days=datenum % 1) - timedelta(days=366)
+            return (
+                datetime.fromordinal(int(datenum))
+                + timedelta(days=datenum % 1)
+                - timedelta(days=366)
+            )
         except ValueError:
             return np.nan
 
@@ -100,9 +103,9 @@ def datenum_to_datetime(datenum):
 
 def datetime64_to_datenum(dt):
     """Skeleton function might work needs improving."""
-    dt = dt.astype('datetime64[s]')
-    dt0 = np.datetime64('0000-01-01T00:00:00')
-    return (dt - dt0)/np.timedelta64(86400, 's') + 1
+    dt = dt.astype("datetime64[s]")
+    dt0 = np.datetime64("0000-01-01T00:00:00")
+    return (dt - dt0) / np.timedelta64(86400, "s") + 1
 
 
 def datetime_to_datenum(dt):
@@ -124,8 +127,8 @@ def datetime_to_datenum(dt):
     def convert(dt):
         try:
             mdn = dt + timedelta(days=366)
-            frac_seconds = (dt - datetime(dt.year, dt.month, dt.day)).seconds/86400.
-            frac_microseconds = dt.microsecond/8.64e10
+            frac_seconds = (dt - datetime(dt.year, dt.month, dt.day)).seconds / 86400.0
+            frac_microseconds = dt.microsecond / 8.64e10
             return mdn.toordinal() + frac_seconds + frac_microseconds
         except ValueError:
             return np.nan
@@ -167,29 +170,31 @@ def lldist(lon, lat):
     lon = np.asarray(lon)
     lat = np.asarray(lat)
 
-    pi180 = np.pi/180.
+    pi180 = np.pi / 180.0
     earth_radius = 6378.137  # [km]
 
-    lat1 = lat[:-1]*pi180
-    lat2 = lat[1:]*pi180
+    lat1 = lat[:-1] * pi180
+    lat2 = lat[1:] * pi180
 
-    dlon = np.diff(lon)*pi180
+    dlon = np.diff(lon) * pi180
     dlat = lat2 - lat1
 
-    a = (np.sin(dlat/2.))**2 + np.cos(lat1)*np.cos(lat2)*(np.sin(dlon/2.))**2
-    angles = 2.*np.arctan2(np.sqrt(a), np.sqrt(1-a))
-    dist = earth_radius*angles
+    a = (np.sin(dlat / 2.0)) ** 2 + np.cos(lat1) * np.cos(lat2) * (
+        np.sin(dlon / 2.0)
+    ) ** 2
+    angles = 2.0 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+    dist = earth_radius * angles
     return dist
 
 
 def distll(lon_0, lat_0, x, y):
     """ """
-    pi180 = np.pi/180.
+    pi180 = np.pi / 180.0
     earth_radius = 6378.137  # [km]
 
-    r = earth_radius*np.cos(pi180*lat_0)
-    dlons = x/(r*pi180)
-    dlats = y/(earth_radius*pi180)
+    r = earth_radius * np.cos(pi180 * lat_0)
+    dlons = x / (r * pi180)
+    dlats = y / (earth_radius * pi180)
 
     lons = lon_0 + dlons
     lats = lat_0 + dlats
@@ -201,10 +206,10 @@ def mid(x, axis=0):
     """Returns mid point values along given axis."""
     ndim = np.ndim(x)
     if ndim == 1:
-        return 0.5*(x[1:] + x[:-1])
+        return 0.5 * (x[1:] + x[:-1])
     elif ndim > 1:
         x_ = np.swapaxes(x, axis, 0)
-        xmid_ = 0.5*(x_[1:, ...] + x_[:-1, ...])
+        xmid_ = 0.5 * (x_[1:, ...] + x_[:-1, ...])
         return np.swapaxes(xmid_, 0, axis)
     else:
         raise ValueError
@@ -212,7 +217,7 @@ def mid(x, axis=0):
 
 def rotate(x, y, a):
     """Rotate vector (x, y) by an angle a."""
-    return x*np.cos(a) + y*np.sin(a), -x*np.sin(a) + y*np.cos(a)
+    return x * np.cos(a) + y * np.sin(a), -x * np.sin(a) + y * np.cos(a)
 
 
 def flip_padded(data, cols=None):
@@ -242,10 +247,10 @@ def flip_padded(data, cols=None):
         flip_arr = np.flipud(arr)
         nnans = ~np.isnan(flip_arr)
         idx = nnans.searchsorted(True)
-#        try:
-#            indx = next(i for i, el, in enumerate(flip_arr) if ~np.isnan(el))
-#        except StopIteration:
-#            return flip_arr
+        #        try:
+        #            indx = next(i for i, el, in enumerate(flip_arr) if ~np.isnan(el))
+        #        except StopIteration:
+        #            return flip_arr
         return np.concatenate((flip_arr[idx:], flip_arr[:idx]))
 
     if d == 1 and cols is None:
@@ -263,20 +268,20 @@ def flip_padded(data, cols=None):
             out_data[:, col_indx] = flip(col)
 
     else:
-        raise RuntimeError('Inputs are probably wrong.')
+        raise RuntimeError("Inputs are probably wrong.")
 
     return out_data
 
 
-def nansort(a, axis=-1, kind='quicksort'):
+def nansort(a, axis=-1, kind="quicksort"):
     """Sort but leave NaN values untouched in place."""
     if axis not in [-1, 0, 1]:
-        raise ValueError('The axis may be only -1, 0 or 1.')
+        raise ValueError("The axis may be only -1, 0 or 1.")
 
     ndim = np.ndim(a)
 
     if ndim > 2:
-        raise ValueError('Only 1 or 2 dimensional arrays are supported.')
+        raise ValueError("Only 1 or 2 dimensional arrays are supported.")
 
     nans = np.isnan(a)
     a_sorted = np.full_like(a, np.nan)
@@ -351,7 +356,7 @@ def nantrapz(y, x=None, dx=1.0, axis=0, xave=False):
             x = np.tile(x[np.newaxis, :], (ni, 1))
             axis = 1
         else:
-            raise ValueError('Size of x does not match any axis size of y.')
+            raise ValueError("Size of x does not match any axis size of y.")
 
         ndimx = 2
 
@@ -414,7 +419,7 @@ def finite_diff(x, y, ivar=None, order=1, acc=1):
 
     """
 
-    dydx_out = np.nan*np.zeros_like(x)
+    dydx_out = np.nan * np.zeros_like(x)
 
     x_nans = np.isnan(x)
     y_nans = np.isnan(y)
@@ -427,17 +432,17 @@ def finite_diff(x, y, ivar=None, order=1, acc=1):
         ivar_nn = ivar[~nans]
 
     if acc == 1:
-        dydx = np.diff(y_nn)/np.diff(x_nn)
+        dydx = np.diff(y_nn) / np.diff(x_nn)
 
         # Option to use alternative interpolant (e.g. time).
         if ivar is not None:
-            mid = (ivar_nn[1:] + ivar_nn[:-1])/2.
+            mid = (ivar_nn[1:] + ivar_nn[:-1]) / 2.0
         else:
-            mid = (x_nn[1:] + x_nn[:-1])/2.
+            mid = (x_nn[1:] + x_nn[:-1]) / 2.0
 
         dydx_i = np.interp(x[~x_nans], mid, dydx)
     elif acc > 1:
-        raise ValueError('Accuracies higher than 1 not yet implimented.')
+        raise ValueError("Accuracies higher than 1 not yet implimented.")
 
     dydx_out[~x_nans] = dydx_i
 
@@ -477,14 +482,14 @@ def nan_interp(x, xp, fp, left=None, right=None, axis=0, squeeze_me=True):
     """
 
     if axis not in [-1, 0, 1]:
-        raise ValueError('The axis may be only -1, 0 or 1.')
+        raise ValueError("The axis may be only -1, 0 or 1.")
 
     if xp.shape != fp.shape:
-        raise ValueError('xp and fp have different shapes.')
+        raise ValueError("xp and fp have different shapes.")
 
     ndim = np.ndim(xp)
     if ndim > 2:
-        raise ValueError('Only 1 or 2 dimensional arrays are supported.')
+        raise ValueError("Only 1 or 2 dimensional arrays are supported.")
 
     nans = np.isnan(xp) | np.isnan(fp)
 
@@ -548,12 +553,12 @@ def interp_nans(x, y, y0=0, left=None, right=None, axis=0):
         The interpolated array. Same size as y
     """
     if axis not in [-1, 0, 1]:
-        raise ValueError('The axis may be only -1, 0 or 1.')
+        raise ValueError("The axis may be only -1, 0 or 1.")
 
     ndimy = np.ndim(y)
     ndimx = np.ndim(x)
     if ndimy > 2 or ndimx > 2:
-        raise ValueError('Only 1 or 2 dimensional arrays are supported.')
+        raise ValueError("Only 1 or 2 dimensional arrays are supported.")
 
     nans = np.isnan(y)
 
@@ -574,11 +579,11 @@ def interp_nans(x, y, y0=0, left=None, right=None, axis=0):
                     continue
                 if ndimx == 2:
                     x_ = x[:, j]
-                    yf[nanr, j] = np.interp(x_[nanr], x_[~nanr], y[~nanr, j],
-                                            left, right)
+                    yf[nanr, j] = np.interp(
+                        x_[nanr], x_[~nanr], y[~nanr, j], left, right
+                    )
                 else:
-                    yf[nanr, j] = np.interp(x[nanr], x[~nanr], y[~nanr, j],
-                                            left, right)
+                    yf[nanr, j] = np.interp(x[nanr], x[~nanr], y[~nanr, j], left, right)
 
         if axis == 1 or axis == -1:
             for i in range(nr):
@@ -590,11 +595,11 @@ def interp_nans(x, y, y0=0, left=None, right=None, axis=0):
                     continue
                 if ndimx == 2:
                     x_ = x[i, :]
-                    yf[i, nanc] = np.interp(x_[nanc], x_[~nanc], y[i, ~nanc],
-                                            left, right)
+                    yf[i, nanc] = np.interp(
+                        x_[nanc], x_[~nanc], y[i, ~nanc], left, right
+                    )
                 else:
-                    yf[i, nanc] = np.interp(x[nanc], x[~nanc], y[i, ~nanc],
-                                            left, right)
+                    yf[i, nanc] = np.interp(x[nanc], x[~nanc], y[i, ~nanc], left, right)
     return yf
 
 
@@ -627,7 +632,7 @@ def nan_polyvalfit(x, y, deg):
     """
     p = nan_polyfit(x, y, deg)
     nans = np.isnan(x) | np.isnan(y)
-    y_out = np.nan*np.zeros_like(y)
+    y_out = np.nan * np.zeros_like(y)
     y_out[~nans] = np.polyval(p, x[~nans])
     return y_out
 
@@ -650,7 +655,7 @@ def nan_detrend(x, y, deg=1):
         Detrended data.
 
     """
-    y_out = np.nan*np.zeros_like(y)
+    y_out = np.nan * np.zeros_like(y)
 
     if np.ndim(x) == 1:
         nans = np.isnan(x) | np.isnan(y)
@@ -662,19 +667,20 @@ def nan_detrend(x, y, deg=1):
             p = nan_polyfit(x[:, i], y[:, i], deg)
             y_out[~nans, i] = y[~nans, i] - np.polyval(p, x[~nans, i])
     else:
-        raise RuntimeError('Arguments must be 1 or 2 dimensional arrays.')
+        raise RuntimeError("Arguments must be 1 or 2 dimensional arrays.")
 
     return y_out
 
 
-def nan_binned_statistic(x, values, statistic='mean', bins=10, range=None):
+def nan_binned_statistic(x, values, statistic="mean", bins=10, range=None):
     """See help for scipy.stats.binned_statistic. This is the same but removes
     NaN values."""
     x = x.flatten()
     values = values.flatten()
     nnans = ~(np.isnan(values) | np.isnan(x))
-    return stats.binned_statistic(x[nnans], values[nnans], statistic=statistic,
-                                  bins=bins, range=range)
+    return stats.binned_statistic(
+        x[nnans], values[nnans], statistic=statistic, bins=bins, range=range
+    )
 
 
 def apply_to_binned(x, y, bins, statistic, kwargs={}, axis=0):
@@ -688,8 +694,8 @@ def apply_to_binned(x, y, bins, statistic, kwargs={}, axis=0):
         out = np.full((nbins,), np.nan)
         idxs = np.digitize(x, bins)
         for i in range(nbins):
-            y_ = y[idxs == i+1]
-            out[i] = (statistic(y_, **kwargs))
+            y_ = y[idxs == i + 1]
+            out[i] = statistic(y_, **kwargs)
     if ndim == 2:
         nr, nc = y.shape
         if axis == 0:
@@ -697,15 +703,15 @@ def apply_to_binned(x, y, bins, statistic, kwargs={}, axis=0):
             for i in range(nc):
                 idxs = np.digitize(x[:, i], bins)
                 for j in range(nbins):
-                    y_ = y[idxs == j+1, i]
-                    out[j, i] = (statistic(y_, **kwargs))
+                    y_ = y[idxs == j + 1, i]
+                    out[j, i] = statistic(y_, **kwargs)
         elif axis == 1 or axis == -1:
             out = np.full((nr, nbins), np.nan)
             for i in range(nr):
                 idxs = np.digitize(x[i, :], bins)
                 for j in range(nbins):
-                    y_ = y[i, idxs == j+1]
-                    out[i, j] = (statistic(y_, **kwargs))
+                    y_ = y[i, idxs == j + 1]
+                    out[i, j] = statistic(y_, **kwargs)
     return out
 
 
@@ -729,7 +735,7 @@ def std_spike_detector(x, N):
     """
     x_mean = np.mean(x)
     x_std = np.std(x)
-    tf = np.abs(x - x_mean) > N*x_std
+    tf = np.abs(x - x_mean) > N * x_std
     return tf
 
 
@@ -740,7 +746,7 @@ def interp_nonmon(x, xp, fp, left=None, right=None):
     where xp is monotonically decreasing instead but not much else.
 
     """
-    if np.mean(np.diff(xp)) < 0.:
+    if np.mean(np.diff(xp)) < 0.0:
         xpf = np.flipud(xp)
         fpf = np.flipud(fp)
         return np.interp(x, xpf, fpf, left, right)
@@ -748,7 +754,7 @@ def interp_nonmon(x, xp, fp, left=None, right=None):
         return np.interp(x, xp, fp, left, right)
 
 
-def spherical_polar_gradient(f, lon, lat, r=6371000.):
+def spherical_polar_gradient(f, lon, lat, r=6371000.0):
     """Extension of the np.gradient function to spherical polar coordinates.
     Only gradients on a surface of constant radius (i.e. 2 dimensional) are
     currently supported. The grid must be evenly spaced in latitude and
@@ -781,8 +787,9 @@ def spherical_polar_gradient(f, lon, lat, r=6371000.):
     """
     nr, nc = f.shape
     if (nr != len(lat)) or (nc != len(lon)):
-        raise ValueError('Latitude and longitude are expected to be rows and'
-                         'columns respectively')
+        raise ValueError(
+            "Latitude and longitude are expected to be rows and" "columns respectively"
+        )
 
     lon, lat = np.meshgrid(np.deg2rad(lon), np.deg2rad(lat))
 
@@ -792,13 +799,13 @@ def spherical_polar_gradient(f, lon, lat, r=6371000.):
     dlat = np.gradient(lat, axis=0)
 
     # Cosine because latitude from -90 to 90. Not 0 to pi.
-    dfdlon = dfj/(r*dlon*np.cos(lat))
-    dfdlat = dfi/(r*dlat)
+    dfdlon = dfj / (r * dlon * np.cos(lat))
+    dfdlat = dfi / (r * dlat)
 
     return dfdlon, dfdlat
 
 
-def spherical_polar_gradient_ts(f, lon, lat, r=6371000.):
+def spherical_polar_gradient_ts(f, lon, lat, r=6371000.0):
     """Gradient of a two dimensional time series.
 
     Important
@@ -820,11 +827,11 @@ def spherical_polar_gradient_ts(f, lon, lat, r=6371000.):
     dlon = np.gradient(lon, axis=1)
     dlat = np.gradient(lat, axis=0)
 
-    dlon = np.tile((r*dlon*np.cos(lat))[np.newaxis, ...], (nt, 1, 1))
-    dlat = np.tile((r*dlat)[np.newaxis, ...], (nt, 1, 1))
+    dlon = np.tile((r * dlon * np.cos(lat))[np.newaxis, ...], (nt, 1, 1))
+    dlat = np.tile((r * dlat)[np.newaxis, ...], (nt, 1, 1))
 
-    dfdlon = dfj/dlon
-    dfdlat = dfi/dlat
+    dfdlon = dfj / dlon
+    dfdlat = dfi / dlat
 
     return dfdlon, dfdlat
 
@@ -847,12 +854,12 @@ def spherical_polar_area(r, lon, lat):
 
     """
 
-    mid_dlon = (lon[2:] - lon[:-2])/2.
+    mid_dlon = (lon[2:] - lon[:-2]) / 2.0
     s_dlon = lon[1] - lon[0]
     e_dlon = lon[-1] - lon[-2]
     dlon = np.hstack((s_dlon, mid_dlon, e_dlon))
 
-    mid_dlat = (lat[2:] - lat[:-2])/2.
+    mid_dlat = (lat[2:] - lat[:-2]) / 2.0
     s_dlat = lat[1] - lat[0]
     e_dlat = lat[-1] - lat[-2]
     dlat = np.hstack((s_dlat, mid_dlat, e_dlat))
@@ -861,13 +868,13 @@ def spherical_polar_area(r, lon, lat):
 
     gdlon, gdlat = np.meshgrid(dlon, dlat)
 
-    solid_angle = gdlon.T*gdlat.T*np.cos(np.deg2rad(lat))
+    solid_angle = gdlon.T * gdlat.T * np.cos(np.deg2rad(lat))
 
-    return solid_angle.T*r**2
+    return solid_angle.T * r ** 2
 
 
 def loadmat(filename, check_arrays=False, **kwargs):
-    '''
+    """
     Big thanks to mergen on stackexchange for this:
         http://stackoverflow.com/a/8832212
 
@@ -875,18 +882,18 @@ def loadmat(filename, check_arrays=False, **kwargs):
     as it cures the problem of not properly recovering python dictionaries
     from mat files. It calls the function check keys to cure all entries
     which are still mat-objects.
-    '''
-    kwargs['struct_as_record'] = False
-    kwargs['squeeze_me'] = True
+    """
+    kwargs["struct_as_record"] = False
+    kwargs["squeeze_me"] = True
     data = io.loadmat(filename, **kwargs)
     return _check_keys(data, check_arrays)
 
 
 def _check_keys(dict, check_arrays):
-    '''
+    """
     Checks if entries in dictionary are mat-objects. If yes
     todict is called to change them to nested dictionaries.
-    '''
+    """
     for key in dict:
         if isinstance(dict[key], io.matlab.mio5_params.mat_struct):
             dict[key] = _todict(dict[key])
@@ -901,9 +908,9 @@ def _check_keys(dict, check_arrays):
 
 
 def _todict(matobj):
-    '''
+    """
     A recursive function which constructs from matobjects nested dictionaries.
-    '''
+    """
     dict = {}
     for strg in matobj._fieldnames:
         elem = matobj.__dict__[strg]
@@ -914,7 +921,7 @@ def _todict(matobj):
     return dict
 
 
-def periodogram2D(z, fs=(1., 1.), window=None, detrend=None):
+def periodogram2D(z, fs=(1.0, 1.0), window=None, detrend=None):
     """Calculate the two dimensional power spectral density.
 
     Parameters
@@ -948,11 +955,11 @@ def periodogram2D(z, fs=(1., 1.), window=None, detrend=None):
     fsi, fsj = fs
     Ni, Nj = z.shape
 
-    if detrend == 'constant':
+    if detrend == "constant":
         z = z - np.mean(z)
 
     if window is None:
-        window = 'boxcar'
+        window = "boxcar"
 
     if isinstance(window, str) or type(window) is tuple:
         wini = sig.windows.get_window(window, Ni)
@@ -961,12 +968,12 @@ def periodogram2D(z, fs=(1., 1.), window=None, detrend=None):
     else:
         raise ValueError("Value for window kwarg not valid.")
 
-    FTz = np.fft.fftshift(np.fft.fft2(win*z))
-    fi = np.fft.fftshift(np.fft.fftfreq(Ni, d=1./fsi))
-    fj = np.fft.fftshift(np.fft.fftfreq(Nj, d=1./fsj))
+    FTz = np.fft.fftshift(np.fft.fft2(win * z))
+    fi = np.fft.fftshift(np.fft.fftfreq(Ni, d=1.0 / fsi))
+    fj = np.fft.fftshift(np.fft.fftfreq(Nj, d=1.0 / fsj))
 
     # The power spectrum.
-    result = (FTz*FTz.conj()).real/(Ni*fsi*Nj*fsj)
+    result = (FTz * FTz.conj()).real / (Ni * fsi * Nj * fsj)
 
     return fi, fj, result
 
@@ -979,7 +986,7 @@ def contiguous_regions(condition):
     # https://stackoverflow.com/a/4495197
     # Find the indicies of changes in "condition"
     d = np.diff(condition)
-    idx, = d.nonzero()
+    (idx,) = d.nonzero()
 
     # We need to start things after the change in "condition". Therefore,
     # we'll shift the index by 1 to the right.
@@ -998,7 +1005,7 @@ def contiguous_regions(condition):
     return idx
 
 
-def butter(cutoff, fs, btype='low', order=4):
+def butter(cutoff, fs, btype="low", order=4):
     """Return Butterworth filter coefficients. See scipy.signal.butter for a
     more thorough documentation.
 
@@ -1029,7 +1036,7 @@ def butter(cutoff, fs, btype='low', order=4):
     return b, a
 
 
-def butter_filter(x, cutoff, fs, btype='low', order=4, **kwargs):
+def butter_filter(x, cutoff, fs, btype="low", order=4, **kwargs):
     """Apply Butterworth filter to data using scipy.signal.filtfilt.
 
     Parameters
@@ -1058,8 +1065,7 @@ def butter_filter(x, cutoff, fs, btype='low', order=4, **kwargs):
     return y
 
 
-def nan_butter_filter(x, cutoff, fs, axis=1, btype='low', order=4, dic=20,
-                      **kwargs):
+def nan_butter_filter(x, cutoff, fs, axis=1, btype="low", order=4, dic=20, **kwargs):
     """Apply Butterworth filter to data using scipy.signal.filtfilt for 2D array
     along the given axis. Can handle some NaN values and 2D arrays.
 
@@ -1112,12 +1118,10 @@ def nan_butter_filter(x, cutoff, fs, axis=1, btype='low', order=4, dic=20,
         nr, nc = x.shape
         if axis == 0:
             for i in range(nc):
-                y[:, i] = _filthelp(x[:, i], cutoff, fs, btype, order, dic,
-                                    **kwargs)
+                y[:, i] = _filthelp(x[:, i], cutoff, fs, btype, order, dic, **kwargs)
         if axis == -1 or axis == 1:
             for i in range(nr):
-                y[i, :] = _filthelp(x[i, :], cutoff, fs, btype, order, dic,
-                                    **kwargs)
+                y[i, :] = _filthelp(x[i, :], cutoff, fs, btype, order, dic, **kwargs)
         return y
 
 
@@ -1153,8 +1157,17 @@ def bin_data(x, bins, x_monotonic=True):
     return idxs
 
 
-def welchci(x, fs=1.0, conf=0.95, fc=None, bin_sizes=None, nperseg=256,
-            window='hanning', correctfc=False, **kwargs):
+def welchci(
+    x,
+    fs=1.0,
+    conf=0.95,
+    fc=None,
+    bin_sizes=None,
+    nperseg=256,
+    window="hanning",
+    correctfc=False,
+    **kwargs
+):
     """Esimate spectra using Welch's method, estimate confidence intervals
     using method in Emery and Thompson and also perform frequency band
     averaging. 50% overlapping windows are enforced as this is my
@@ -1201,31 +1214,33 @@ def welchci(x, fs=1.0, conf=0.95, fc=None, bin_sizes=None, nperseg=256,
     """
 
     # These come from Table 5.5 in Emery and Thompson.
-    fw = {'hanning': 2.666666,
-          'bartlett': 3,
-          'daniell': 2,
-          'parzen': 3.708614,
-          'hamming': 2.5164,
-          'boxcar': 1}
+    fw = {
+        "hanning": 2.666666,
+        "bartlett": 3,
+        "daniell": 2,
+        "parzen": 3.708614,
+        "hamming": 2.5164,
+        "boxcar": 1,
+    }
 
-    f, Pxx = sig.welch(x, fs, window, nperseg, nperseg/2, **kwargs)
+    f, Pxx = sig.welch(x, fs, window, nperseg, nperseg / 2, **kwargs)
     Nx = len(x)
     alpha = 1 - conf
 
     if fc is None and bin_sizes is None:
-        EDOF = fw[window]*Nx/(nperseg/2)
-        cl = EDOF/stats.chi2.ppf(1 - alpha/2, EDOF)
-        cu = EDOF/stats.chi2.ppf(alpha/2, EDOF)
+        EDOF = fw[window] * Nx / (nperseg / 2)
+        cl = EDOF / stats.chi2.ppf(1 - alpha / 2, EDOF)
+        cu = EDOF / stats.chi2.ppf(alpha / 2, EDOF)
 
         return f, Pxx, cl, cu, EDOF
 
     if fc is not None and bin_sizes is not None:
         fc = np.asarray(fc)
         bin_sizes = np.asarray(bin_sizes)
-        EDOF = np.ones_like(f)*fw[window]*Nx/(nperseg/2)
+        EDOF = np.ones_like(f) * fw[window] * Nx / (nperseg / 2)
 
         if (bin_sizes.size - fc.size) != 1:
-            raise ValueError('bin_sizes should contain one more element than fc')
+            raise ValueError("bin_sizes should contain one more element than fc")
 
         ifc = np.asarray(np.searchsorted(f, fc))
         Nbin = len(bin_sizes)
@@ -1237,10 +1252,10 @@ def welchci(x, fs=1.0, conf=0.95, fc=None, bin_sizes=None, nperseg=256,
 
         for i in range(Nbin):
             bs = bin_sizes[i]
-            if i == Nbin-1:
+            if i == Nbin - 1:
                 sl = slice(ifc[i], None)
             else:
-                sl = slice(ifc[i], ifc[i+1])
+                sl = slice(ifc[i], ifc[i + 1])
 
             if bs == 1:
                 freqs.append(f[sl])
@@ -1249,13 +1264,13 @@ def welchci(x, fs=1.0, conf=0.95, fc=None, bin_sizes=None, nperseg=256,
                 continue
 
             Nblock = len(f[sl])
-            Nsbins = int(np.floor(Nblock/bs))
-            cut = Nblock - Nsbins*bs
-            if (i != Nbin-1) and correctfc:
-                ifc[i+1] -= cut
-            freq_ = f[sl][:-cut].reshape((Nsbins, bs), order='C').mean(axis=1)
-            Pxx_ = Pxx[sl][:-cut].reshape((Nsbins, bs), order='C').mean(axis=1)
-            EDOF_ = EDOF[sl][:-cut].reshape((Nsbins, bs), order='C').mean(axis=1)*bs
+            Nsbins = int(np.floor(Nblock / bs))
+            cut = Nblock - Nsbins * bs
+            if (i != Nbin - 1) and correctfc:
+                ifc[i + 1] -= cut
+            freq_ = f[sl][:-cut].reshape((Nsbins, bs), order="C").mean(axis=1)
+            Pxx_ = Pxx[sl][:-cut].reshape((Nsbins, bs), order="C").mean(axis=1)
+            EDOF_ = EDOF[sl][:-cut].reshape((Nsbins, bs), order="C").mean(axis=1) * bs
             freqs.append(freq_)
             Pxxs.append(Pxx_)
             EDOFs.append(EDOF_)
@@ -1266,7 +1281,7 @@ def welchci(x, fs=1.0, conf=0.95, fc=None, bin_sizes=None, nperseg=256,
 
         alpha = 1 - conf
 
-        cl = EDOFs/stats.chi2.ppf(1 - alpha/2, EDOFs)
-        cu = EDOFs/stats.chi2.ppf(alpha/2, EDOFs)
+        cl = EDOFs / stats.chi2.ppf(1 - alpha / 2, EDOFs)
+        cu = EDOFs / stats.chi2.ppf(alpha / 2, EDOFs)
 
         return freqs, Pxxs, cl, cu, EDOFs
