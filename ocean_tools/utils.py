@@ -1285,3 +1285,44 @@ def welchci(
         cu = EDOFs / stats.chi2.ppf(alpha / 2, EDOFs)
 
         return freqs, Pxxs, cl, cu, EDOFs
+
+
+def bilinear_interpolation(xa, ya, fg, x, y):
+    """Because, bizarrely, this doesn't exist in numpy.
+
+    Parameters
+    ----------
+    xa : 1-D numpy.ndarray of floats
+        x values of fg, must be monotonically increasing.
+    ya : 1-D numpy.ndarray of floats
+        y values of fg, must be monotonically increasing.
+    fg : 2-D numpy.ndarray of floats
+        values to be interpolated, formatted such that first index (rows)
+        correspond to x and second index (columns) correspond to y, f[x,y]
+    x : 1-D numpy.ndarray of floats
+        x values of interpolation points.
+    y : 1-D numpy.ndarray of floats
+        y values of interpolation points.
+
+    Returns
+    -------
+    fi : 1-D numpy.ndarray of floats
+        Interpolated values of fg.
+
+    Notes
+    -----
+    Currently no error checking.
+    Source: wikipedia.
+
+    """
+    i1 = np.searchsorted(xa, x)
+    i2 = i1 + 1
+    j1 = np.searchsorted(ya, y)
+    j2 = j1 + 1
+    dx = xa[i2] - xa[i1]
+    dy = ya[j2] - ya[j1]
+    f11, f21, f12, f22 = fg[i1, j1], fg[i2, j1], fg[i1, j2], fg[i2, j2]
+    x1, y1, x2, y2 = xa[i1], ya[j1], xa[i2], ya[j2]
+    fi = (f11*(x2 - x)*(y2 - y) + f21*(x - x1)*(y2 - y) +
+          f12*(x2 - x)*(y - y1) + f22*(x - x1)*(y - y1))/(dx*dy)
+    return fi
