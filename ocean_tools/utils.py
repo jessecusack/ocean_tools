@@ -1030,6 +1030,7 @@ def butter(cutoff, fs, btype="low", order=4):
         Filter a coefficients.
 
     """
+    cutoff = np.asarray(cutoff)
     nyq = 0.5 * fs
     normal_cutoff = cutoff / nyq
     b, a = sig.butter(order, normal_cutoff, btype=btype, analog=False)
@@ -1311,7 +1312,6 @@ def bilinear_interpolation(xa, ya, fg, x, y):
 
     Notes
     -----
-    Currently no error checking.
     Source: wikipedia.
 
     """
