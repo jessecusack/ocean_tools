@@ -267,7 +267,14 @@ def adiabatic_level_gsw(P, S, T, lon, lat, bin_width=100., order=1,
 
     g = gsw.grav(lat, Pbar)
     # The factor 1e-4 is needed for conversion from dbar to Pa.
-    N2 = -1e-4*rhobar**2*g**2*p[order-1, :]
+    if order == 1:
+        N2 = -1e-4*rhobar**2*g**2*p[0, :]
+    elif order == 2:
+        N2 = -1e-4*rhobar**2*g**2*(p[1, :]+2*Pbar*p[0,:])
+    elif order == 3:
+        N2 = -1e-4*rhobar**2*g**2*(p[2, :]+2*Pbar*p[1,:]+3*Pbar**2*p[0,:])
+    else:
+        raise ValueError('Fits are only included up to 3rd order.')
 
     N2_ref = np.full_like(P, np.nan)
     pcoef = np.full((order+1, P.size), np.nan)
