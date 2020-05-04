@@ -1326,3 +1326,45 @@ def bilinear_interpolation(xa, ya, fg, x, y):
     fi = (f11*(x2 - x)*(y2 - y) + f21*(x - x1)*(y2 - y) +
           f12*(x2 - x)*(y - y1) + f22*(x - x1)*(y - y1))/(dx*dy)
     return fi
+
+
+def esum(ea, eb, fa=1, fb=1):
+    """Error on sum of two numbers."""
+    return np.sqrt((fa*ea)**2 + (fb*eb)**2)
+
+
+def esuma(ea, axis=0):
+    """Sum of array of errors."""
+    return np.sqrt(np.sum(ea**2, axis=axis))
+
+
+def emult(a, b, ea, eb):
+    """Error on two numbers multiplied together."""
+    return np.abs(a*b)*np.sqrt((ea/a)**2 + (eb/b)**2)
+
+
+def emean(ea, axis=0):
+    """
+    Error on the mean.
+
+    Parameters
+    ----------
+    ea : array of floats
+        Array of errors (e.g. standard deviations, not variance)
+    axis : int, optional
+        Axis along which to calculate the mean, default is 0.
+    Returns
+    -------
+    emean : float
+        Error on the mean equal to root of the sum of the squares of ea divided
+        by the length of ea.
+
+    """
+    return esuma(ea, axis=axis)/ea.shape[axis]
+
+
+def etrapz(ey, x):
+    """Error on trapezium integration."""
+    dx = np.diff(x)
+    eys = 0.5*dx*esuma(np.stack((ey[:-1], ey[1:]), axis=1), axis=1)
+    return esuma(eys)
