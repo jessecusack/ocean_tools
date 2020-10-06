@@ -364,7 +364,7 @@ def nantrapz(y, x=None, dx=1.0, axis=0, xave=False):
         nans = np.isnan(x) | np.isnan(y)
         nnans = ~nans
 
-        if axis is 0:
+        if axis == 0:
             nj = y.shape[1]
             yint = np.full((nj,), np.nan)
             for j in range(nj):
@@ -374,7 +374,7 @@ def nantrapz(y, x=None, dx=1.0, axis=0, xave=False):
                 x_ = x[nnans[:, j], j]
                 yint[j] = np.trapz(y_, x_)
 
-        if axis is 1 or axis is -1:
+        if axis == 1 or axis == -1:
             ni = y.shape[0]
             yint = np.full((ni,), np.nan)
             for i in range(ni):
